@@ -1,0 +1,195 @@
+:root {
+  --bg-primary: #0f1419;
+  --bg-secondary: #1a2028;
+  --bg-tertiary: #242d38;
+  --bg-card: #1e2630;
+  --border: #2d3a48;
+  --border-light: #3a4a5c;
+  --text-primary: #e8edf2;
+  --text-secondary: #8b98a8;
+  --text-muted: #5a6a7a;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-bg: rgba(59, 130, 246, 0.12);
+  --danger: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.12);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.12);
+  --success: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.12);
+  --alarm-l1: #f59e0b;
+  --alarm-l1-bg: rgba(245, 158, 11, 0.15);
+  --alarm-l2: #ef4444;
+  --alarm-l2-bg: rgba(239, 68, 68, 0.15);
+  --status-online: #10b981;
+  --status-offline: #6b7280;
+  --status-fault: #ef4444;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --transition: 0.2s ease;
+  --nav-height: 52px;
+  --sidebar-width: 420px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 14px;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  overflow: hidden;
+  height: 100vh;
+}
+
+#app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Buttons */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  transition: all var(--transition);
+}
+button:hover {
+  background: var(--border);
+  border-color: var(--border-light);
+}
+button:active {
+  transform: scale(0.97);
+}
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+button.primary:hover {
+  background: var(--accent-hover);
+}
+button.danger {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+button.small {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+button.active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Inputs */
+input, select {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition);
+}
+input:focus, select:focus {
+  border-color: var(--accent);
+}
+
+/* Tags / badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.badge.online {
+  background: var(--success-bg);
+  color: var(--status-online);
+}
+.badge.offline {
+  background: rgba(107, 114, 128, 0.15);
+  color: var(--status-offline);
+}
+.badge.fault {
+  background: var(--danger-bg);
+  color: var(--status-fault);
+}
+.badge.alarm-l1 {
+  background: var(--alarm-l1-bg);
+  color: var(--alarm-l1);
+}
+.badge.alarm-l2 {
+  background: var(--alarm-l2-bg);
+  color: var(--alarm-l2);
+}
+
+/* Table */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th, td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+th {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--bg-secondary);
+  position: sticky;
+  top: 0;
+}
+tr:hover td {
+  background: var(--bg-tertiary);
+}
