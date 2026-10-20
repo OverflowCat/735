@@ -1,47 +1,73 @@
-# Svelte + TS + Vite
+# cabcal-jurlegi — 735 工厂监控前端
 
-This template should help get you started developing with Svelte and TypeScript in Vite.
+工厂辐射监测平台的前端界面，监控 γ 剂量率监测仪、空气测氡仪等设备。
 
-## Recommended IDE Setup
+## 技术栈
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
+- Svelte 5 + TypeScript
+- Vite
+- Apache ECharts（历史趋势 / 对比图）
+- Three.js（3D 工厂视图）
 
-## Need an official Svelte framework?
+## 快速开始
 
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
-
-## Technical considerations
-
-**Why use this over SvelteKit?**
-
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
-
-This template contains as little as possible to get started with Vite + TypeScript + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
-
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
-
-**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
-
-Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
-
-**Why include `.vscode/extensions.json`?**
-
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
-
-**Why enable `allowJs` in the TS template?**
-
-While `allowJs: false` would indeed prevent the use of `.js` files in the project, it does not prevent the use of JavaScript syntax in `.svelte` files. In addition, it would force `checkJs: false`, bringing the worst of both worlds: not being able to guarantee the entire codebase is TypeScript, and also having worse typechecking for the existing JavaScript. In addition, there are valid use cases in which a mixed codebase may be relevant.
-
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/rixo/svelte-hmr#svelte-hmr).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
-
-```ts
-// store.ts
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
+```bash
+npm install
+npm run dev        # 开发模式 → http://localhost:5173
 ```
+
+前端默认请求 `http://localhost:3000/api/v1`。如后端地址不同，设置环境变量：
+
+```bash
+VITE_API_BASE=http://192.168.1.10:3000 npm run dev
+```
+
+## 构建
+
+```bash
+npm run check      # 类型检查
+npm run build      # 生产构建 → dist/
+npm run preview    # 预览构建产物
+```
+
+## 页面
+
+| 路由 | 说明 |
+|------|------|
+| `/map` | 工厂地图（默认主页），2D/3D 视图，设备位置、实时测量、报警状态 |
+| `/overview` | 总览页，设备统计、可搜索设备表、多设备趋势对比 |
+
+## 主要功能
+
+- **2D 工厂地图**：SVG 场景，显示区域、墙体、设备位置与实时测量值
+- **3D 工厂视图**：Three.js 简单几何体，与 2D 共用同一场景坐标模型
+- **设备抽屉**：点击设备打开侧边栏，显示详情、报警、ECharts 历史趋势
+- **地图编辑模式**：拖拽设备位置、添加/移除放置、编辑场景对象（仅 2D）
+- **多设备对比**：选择指标、时间范围、多台设备叠加趋势图
+
+## 目录结构
+
+```
+src/
+  routes/           # 页面（map / overview）
+  lib/
+    components/     # UI 组件（map / device / charts / overview / three）
+    services/       # DeviceDataSource 抽象层 + HttpDeviceDataSource
+    state/          # 全局应用状态（Svelte 5 runes）
+    types/          # 协议与领域类型
+    data/mock/      # 旧 mock 数据（已不使用，仅保留参考）
+```
+
+## 数据源
+
+前端通过 `DeviceDataSource` 接口访问数据，当前实现为 `HttpDeviceDataSource`，调用后端 REST API：
+
+```
+GET  /api/v1/devices
+GET  /api/v1/devices/:id
+GET  /api/v1/devices/:id/history?metric=xxx&range=15m|1h|24h|7d
+GET  /api/v1/scene
+PUT  /api/v1/scene
+```
+
+后端不可用时页面会报错（不会显示 mock 假数据）。

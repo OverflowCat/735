@@ -1,10 +1,12 @@
 import type { Device } from '../types/device';
 import type { FactoryScene } from '../types/scene';
 import type { DeviceDataSource } from '../services/data-source';
-import { MockDeviceDataSource } from '../services/mock-data-source';
+import { HttpDeviceDataSource } from '../services/http-data-source';
 
-// Singleton data source - swap this for a real backend implementation later.
-const ds: DeviceDataSource = new MockDeviceDataSource();
+// Singleton data source — HTTP only, no mock fallback.
+// Set VITE_API_BASE to point at a remote backend (e.g. http://192.168.1.10:3000).
+const apiBase = import.meta.env.VITE_API_BASE ?? '';
+const ds: DeviceDataSource = new HttpDeviceDataSource(apiBase);
 
 // --- Reactive state container ---
 // Svelte 5 does not allow reassigning exported $state variables from other modules.
