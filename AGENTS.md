@@ -63,12 +63,13 @@ nmcli con mod "有线连接 1" ipv4.method manual ipv4.addresses 192.168.10.2/24
 nmcli con up "有线连接 1" ifname enaphyt36i2
 ```
 
-### 内网设备（2026-10-20 探测）
+### 内网设备（2026-10-20 复扫，20 台）
 
 全部开放 **TCP 80**（HTTP Basic，realm `USER LOGIN`，`Server: HTTPD`）；未见 22/443/502/1883 等其它端口。两组 MAC OUI：`28:9c:6e:*` 与 `34:ea:e7:*`。
 
 | IP | MAC |
 |----|-----|
+| 192.168.10.11 | `28:9c:6e:92:f5:ed` |
 | 192.168.10.12 | `28:9c:6e:92:fb:7e` |
 | 192.168.10.16 | `28:9c:6e:92:fb:77` |
 | 192.168.10.17 | `34:ea:e7:fd:41:1b` |
@@ -80,6 +81,7 @@ nmcli con up "有线连接 1" ifname enaphyt36i2
 | 192.168.10.23 | `28:9c:6e:92:fb:7f` |
 | 192.168.10.25 | `34:ea:e7:fd:40:bf` |
 | 192.168.10.26 | `34:ea:e7:fd:41:3d` |
+| 192.168.10.29 | `34:ea:e7:fd:42:64` |
 | 192.168.10.30 | `34:ea:e7:fd:41:41` |
 | 192.168.10.31 | `28:9c:6e:92:fb:4f` |
 | 192.168.10.32 | `34:ea:e7:fd:41:3c` |
@@ -88,7 +90,31 @@ nmcli con up "有线连接 1" ifname enaphyt36i2
 | 192.168.10.37 | `28:9c:6e:92:fb:96` |
 | 192.168.10.40 | `28:9c:6e:92:fb:62` |
 
-探测时 `.11 .13 .14 .15 .24 .27 .28 .29 .33 .34 .38 .39` 不可达（可能空位、关机或未接线）。设备时钟常停在 1970（无 RTC），时间以节点侧为准。
+探测时 `.13 .14 .15 .24 .27 .28 .33 .34 .38 .39` 不可达（可能空位、关机或未接线）。`.11`/`.29` 首轮曾无响应，设备上电后可达。设备时钟常停在 1970（无 RTC），时间以节点侧为准。
+
+### 设备类型与接入（2026-10-20）
+
+现场盒子是 **EPORT HF5111B** 串口服务器（Web `admin:admin`，telnet 23 同账号），不是仪器本体：
+
+- UART：`9600 8N1`，串口挂 γ 能谱仪
+- 原厂 SOCK 为 `TCP-CLIENT` → `192.168.10.10:90XX`（XX=IP 末段），`Rout=uart` 透传
+- 现已统一改为 **`TCP-SERVER` `LocalPort=4000`**，便于 backend 以 `--gamma IP:4000` 直接拨入
+- Web 配置 API：`POST http://IP/cmd`，body 为 `msg={"CID":…,"PL":…}`
+  - `10003` GET_CONFIG / `10005` SET_CONFIG（SOCK 用 `{"SOCK":{…}}` 单对象，数组会 `RC:-3`）
+  - `10001` GET_STATE（`PL:["SYS","UART","SOCK"]`，可带 `Remain:1` 续传）
+  - `20001` reload
+
+### 生产部署（节点 `/opt/735`）
+
+| 项 | 值 |
+|----|-----|
+| backend | `systemd` 单元 `735-backend.service`（enabled） |
+| 命令 | `/opt/735/bin/backend --listen 0.0.0.0:3000 --station STATION-01 --data-dir /opt/735/data --gamma-interval 30 --gamma 192.168.10.X:4000` ×20 |
+| 前端 | `python3 /opt/735/serve.py` → `:8080`（`735-frontend.service`） |
+| 联调脚本 | `python3 /opt/735/test_gamma_devices.py [IP…]` |
+| 有线地址 | `enaphyt36i2`：`192.168.10.2/24` + `192.168.10.10/24`（NetworkManager 已持久化） |
+
+**测数结论（2026-10-20）**：20 台 TCP `:4000` 均可连上，但发送 `#READ_SPECTRUM` / `0x9090` 后 **串口无回传**（UART `RecvBytes=0`），backend 日志为 `spectrum read timeout (no data)`，`/api/v1/devices` 暂为空。需现场确认能谱仪接线、供电、波特率；仪表一有回传即可出数。
 
 ## 注意事项
 
