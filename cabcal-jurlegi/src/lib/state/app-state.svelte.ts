@@ -1,6 +1,6 @@
 import type { Device } from '../types/device';
 import type { DevicePlacement, FactoryScene } from '../types/scene';
-import type { DeviceDataSource } from '../services/data-source';
+import type { DeviceDataSource, HistoryQuery } from '../services/data-source';
 import { HttpDeviceDataSource } from '../services/http-data-source';
 import { mockDevices, mockScene } from '../data/mock';
 
@@ -274,8 +274,8 @@ export function canRedo() {
   return redoStack.length > 0;
 }
 
-export async function getHistory(deviceId: string, metric: string, range: string) {
-  return ds.getHistory(deviceId, metric, range as any);
+export async function getHistory(deviceId: string, metric: string, query: HistoryQuery) {
+  return ds.getHistory(deviceId, metric, query);
 }
 
 export { ds as dataSource };

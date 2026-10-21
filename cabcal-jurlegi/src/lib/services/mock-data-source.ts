@@ -1,7 +1,7 @@
 import type { Device } from '../types/device';
 import type { FactoryScene } from '../types/scene';
 import type { HistoricalPoint } from '../types/device';
-import type { DeviceDataSource, TimeRange } from './data-source';
+import type { DeviceDataSource, HistoryQuery } from './data-source';
 import { mockDevices, mockScene, getMockHistory } from '../data/mock';
 
 export class MockDeviceDataSource implements DeviceDataSource {
@@ -20,9 +20,9 @@ export class MockDeviceDataSource implements DeviceDataSource {
   async getHistory(
     deviceId: string,
     metric: string,
-    range: TimeRange,
+    query: HistoryQuery,
   ): Promise<HistoricalPoint[]> {
-    return getMockHistory(deviceId, metric, range);
+    return getMockHistory(deviceId, metric, query);
   }
 
   async getScene(): Promise<FactoryScene> {

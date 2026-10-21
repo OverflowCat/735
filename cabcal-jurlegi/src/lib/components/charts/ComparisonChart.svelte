@@ -22,21 +22,36 @@
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
   function buildOption() {
+    // Show dates when the window spans more than ~2 days.
+    const spanMs = (() => {
+      let min = Infinity;
+      let max = -Infinity;
+      for (const s of series) {
+        for (const p of s.points) {
+          if (p.timestamp < min) min = p.timestamp;
+          if (p.timestamp > max) max = p.timestamp;
+        }
+      }
+      return Number.isFinite(min) && Number.isFinite(max) ? max - min : 0;
+    })();
+    const showDate = spanMs > 2 * 24 * 60 * 60 * 1000;
+    const pad = (n: number) => String(n).padStart(2, '0');
     return {
       grid: { top: 40, right: 20, bottom: 30, left: 55 },
       legend: {
         data: series.map((s) => s.name),
-        textStyle: { color: '#8b98a8', fontSize: 11 },
+        textStyle: { color: '#8b98a8', fontSize: 12 },
         top: 5,
       },
       xAxis: {
         type: 'time',
         axisLabel: {
           color: '#8b98a8',
-          fontSize: 10,
+          fontSize: 11,
           formatter: (v: number) => {
             const d = new Date(v);
-            return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+            const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            return showDate ? `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${hm}` : hm;
           },
         },
         axisLine: { lineStyle: { color: '#2d3a48' } },
@@ -45,8 +60,8 @@
       yAxis: {
         type: 'value',
         name: unit,
-        nameTextStyle: { color: '#8b98a8', fontSize: 10 },
-        axisLabel: { color: '#8b98a8', fontSize: 10 },
+        nameTextStyle: { color: '#8b98a8', fontSize: 11 },
+        axisLabel: { color: '#8b98a8', fontSize: 11 },
         axisLine: { lineStyle: { color: '#2d3a48' } },
         splitLine: { lineStyle: { color: '#1e2630' } },
       },
@@ -54,7 +69,7 @@
         trigger: 'axis',
         backgroundColor: '#1a2028',
         borderColor: '#2d3a48',
-        textStyle: { color: '#e8edf2', fontSize: 12 },
+        textStyle: { color: '#e8edf2', fontSize: 13 },
       },
       series: series.map((s, i) => ({
         name: s.name,

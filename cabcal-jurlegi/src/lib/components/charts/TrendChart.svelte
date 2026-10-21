@@ -35,7 +35,7 @@
         type: 'time',
         axisLabel: {
           color: '#8b98a8',
-          fontSize: 10,
+          fontSize: 11,
           formatter: (v: number) => {
             const d = new Date(v);
             return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
@@ -47,8 +47,8 @@
       yAxis: {
         type: 'value',
         name: unit,
-        nameTextStyle: { color: '#8b98a8', fontSize: 10 },
-        axisLabel: { color: '#8b98a8', fontSize: 10 },
+        nameTextStyle: { color: '#8b98a8', fontSize: 11 },
+        axisLabel: { color: '#8b98a8', fontSize: 11 },
         axisLine: { lineStyle: { color: '#2d3a48' } },
         splitLine: { lineStyle: { color: '#1e2630' } },
       },
@@ -56,7 +56,7 @@
         trigger: 'axis',
         backgroundColor: '#1a2028',
         borderColor: '#2d3a48',
-        textStyle: { color: '#e8edf2', fontSize: 12 },
+        textStyle: { color: '#e8edf2', fontSize: 13 },
         formatter: (params: any) => {
           const p = params[0];
           if (!p) return '';

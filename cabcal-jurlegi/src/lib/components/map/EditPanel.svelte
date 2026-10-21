@@ -223,7 +223,7 @@
   }
 
   .edit-label {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: #38bdf8;
     padding: 2px 8px;
@@ -232,7 +232,7 @@
   }
 
   .dirty-flag {
-    font-size: 12px;
+    font-size: 13px;
     color: #64748b;
   }
 
@@ -253,7 +253,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: #94a3b8;
     letter-spacing: 0.04em;
@@ -264,7 +264,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 400;
     text-transform: none;
     letter-spacing: 0;
@@ -280,7 +280,7 @@
   }
 
   .btn-row button {
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .device-list {
@@ -302,7 +302,7 @@
     border-radius: 6px;
     color: #e2e8f0;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .device-chip:hover {
@@ -320,7 +320,7 @@
     justify-content: center;
     background: rgba(15, 23, 42, 0.9);
     border: 1.5px solid #10b981;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
   }
 
@@ -335,7 +335,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    font-size: 12px;
+    font-size: 13px;
     color: #fbbf24;
     background: rgba(245, 158, 11, 0.1);
     border: 1px dashed rgba(245, 158, 11, 0.45);
@@ -345,7 +345,7 @@
 
   .empty-hint {
     margin: 0;
-    font-size: 12px;
+    font-size: 13px;
     color: #64748b;
     line-height: 1.5;
   }
@@ -363,13 +363,13 @@
   }
 
   .inspector-title .name {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: #f1f5f9;
   }
 
   .inspector-title .code {
-    font-size: 11px;
+    font-size: 12px;
     color: #94a3b8;
   }
 
@@ -377,7 +377,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: 13px;
     color: #94a3b8;
   }
 
@@ -395,7 +395,7 @@
     border: 1px solid rgba(255, 255, 255, 0.15);
     background: rgba(15, 23, 42, 0.8);
     color: #e2e8f0;
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .field input:focus,
@@ -404,14 +404,14 @@
   }
 
   .hint-line {
-    font-size: 11px;
+    font-size: 12px;
     color: #64748b;
   }
 
   .panel-footer {
     margin-top: auto;
     padding: 10px 14px 14px;
-    font-size: 11px;
+    font-size: 12px;
     color: #64748b;
     display: flex;
     flex-direction: column;

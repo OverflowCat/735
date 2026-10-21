@@ -1,8 +1,12 @@
 <script lang="ts">
   import { appState, getHistory } from '../../state/app-state.svelte';
-  import { TIME_RANGE_LABELS, type TimeRange } from '../../services/data-source';
+  import {
+    relativeQuery,
+    type HistoryQuery,
+  } from '../../services/data-source';
   import type { HistoricalPoint, Device } from '../../types/device';
   import ComparisonChart from '../charts/ComparisonChart.svelte';
+  import TimeRangePicker from '../charts/TimeRangePicker.svelte';
 
   const totalDevices = $derived(appState.devices.length);
   const onlineCount = $derived(appState.devices.filter((d) => d.status === 'online').length);
@@ -24,7 +28,7 @@
   );
 
   let compareMetric = $state<string>('0102060301');
-  let compareRange = $state<TimeRange>('1h');
+  let compareQuery = $state<HistoryQuery>(relativeQuery('1h'));
   let selectedForCompare = $state<string[]>([]);
   let compareData = $state<{ deviceId: string; name: string; points: HistoricalPoint[] }[]>([]);
   let compareLoading = $state(false);
@@ -58,7 +62,7 @@
     const results = await Promise.all(
       selectedForCompare.map(async (id) => {
         const device = appState.devices.find((d) => d.id === id);
-        const points = await getHistory(id, compareMetric, compareRange);
+        const points = await getHistory(id, compareMetric, compareQuery);
         return { deviceId: id, name: device?.name || id, points };
       }),
     );
@@ -66,9 +70,13 @@
     compareLoading = false;
   }
 
+  function onRangeChange(q: HistoryQuery) {
+    compareQuery = q;
+  }
+
   $effect(() => {
     void compareMetric;
-    void compareRange;
+    void compareQuery;
     void selectedForCompare.length;
     loadComparison();
   });
@@ -181,17 +189,7 @@
       <!-- svelte-ignore a11y_label_has_associated_control -->
       <div class="control-group">
         <label>时间范围</label>
-        <div class="range-buttons">
-          {#each Object.entries(TIME_RANGE_LABELS) as [key, label]}
-            <button
-              class:active={compareRange === key}
-              class="small"
-              onclick={() => (compareRange = key as TimeRange)}
-            >
-              {label}
-            </button>
-          {/each}
-        </div>
+        <TimeRangePicker query={compareQuery} onchange={onRangeChange} />
       </div>
       <!-- svelte-ignore a11y_label_has_associated_control -->
       <div class="control-group">
@@ -256,14 +254,14 @@
   .summary-card.alarm { border-left: 4px solid var(--alarm-l2); }
 
   .summary-value {
-    font-size: 32px;
+    font-size: 34px;
     font-weight: 700;
     font-family: var(--font-mono);
     line-height: 1.2;
   }
 
   .summary-label {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-secondary);
     margin-top: 4px;
   }
@@ -284,7 +282,7 @@
   }
 
   .section-header h3 {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     margin: 0;
   }
@@ -300,12 +298,12 @@
 
   .mono {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .no-alarm {
     color: var(--text-muted);
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .compare-controls {
@@ -323,7 +321,7 @@
   }
 
   .control-group label {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-secondary);
   }
 
@@ -342,6 +340,6 @@
     text-align: center;
     padding: 40px;
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: 14px;
   }
 </style>

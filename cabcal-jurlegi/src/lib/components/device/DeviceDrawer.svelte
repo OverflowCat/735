@@ -1,20 +1,29 @@
 <script lang="ts">
   import { appState, selectDevice, getHistory } from '../../state/app-state.svelte';
-  import { TIME_RANGE_LABELS, type TimeRange } from '../../services/data-source';
+  import {
+    relativeQuery,
+    type HistoryQuery,
+  } from '../../services/data-source';
   import type { Device } from '../../types/device';
   import type { HistoricalPoint } from '../../types/device';
   import TrendChart from '../charts/TrendChart.svelte';
+  import TimeRangePicker from '../charts/TimeRangePicker.svelte';
 
   const device = $derived(appState.devices.find((d) => d.id === appState.selectedDeviceId) as Device | undefined);
-  let timeRange = $state<TimeRange>('1h');
+  let historyQuery = $state<HistoryQuery>(relativeQuery('1h'));
   let history = $state<HistoricalPoint[]>([]);
   let loading = $state(false);
 
   async function loadHistory() {
     if (!device || !device.metrics[0]) return;
     loading = true;
-    history = await getHistory(device.id, device.metrics[0].metric, timeRange);
+    history = await getHistory(device.id, device.metrics[0].metric, historyQuery);
     loading = false;
+  }
+
+  function onRangeChange(q: HistoryQuery) {
+    historyQuery = q;
+    void loadHistory();
   }
 
   $effect(() => {
@@ -113,17 +122,7 @@
 
       <section class="section">
         <h4>历史趋势</h4>
-        <div class="time-range-selector">
-          {#each Object.entries(TIME_RANGE_LABELS) as [key, label]}
-            <button
-              class:active={timeRange === key}
-              class="small"
-              onclick={() => { timeRange = key as TimeRange; loadHistory(); }}
-            >
-              {label}
-            </button>
-          {/each}
-        </div>
+        <TimeRangePicker query={historyQuery} onchange={onRangeChange} />
         {#if loading}
           <div class="loading">加载中...</div>
         {:else}
@@ -164,7 +163,7 @@
   }
 
   .drawer-header h3 {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     margin: 0;
   }
@@ -173,7 +172,7 @@
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 18px;
+    font-size: 19px;
     padding: 4px 8px;
     line-height: 1;
   }
@@ -202,17 +201,17 @@
   }
 
   .info-label {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-secondary);
   }
 
   .info-value {
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .info-value.mono {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .section {
@@ -221,7 +220,7 @@
   }
 
   .section h4 {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     margin: 0 0 10px;
     color: var(--text-secondary);
@@ -247,12 +246,12 @@
   }
 
   .metric-name {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-secondary);
   }
 
   .metric-value {
-    font-size: 28px;
+    font-size: 30px;
     font-weight: 700;
     font-family: var(--font-mono);
     line-height: 1.2;
@@ -267,7 +266,7 @@
   }
 
   .metric-unit {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 400;
     color: var(--text-secondary);
     margin-left: 4px;
@@ -278,7 +277,7 @@
     padding: 8px;
     background: var(--alarm-l2-bg);
     border-radius: var(--radius);
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-secondary);
   }
 
@@ -296,7 +295,7 @@
   }
 
   .alarm-detail p {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-secondary);
     margin: 0;
   }
@@ -309,17 +308,11 @@
     background: var(--alarm-l2-bg);
   }
 
-  .time-range-selector {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 10px;
-  }
-
   .loading {
     text-align: center;
     padding: 20px;
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .chart-container {

@@ -1,8 +1,7 @@
 // In-memory store for development. Replace with fjall-backed store later.
 
-use super::{DeviceStore, TimeRange};
+use super::DeviceStore;
 use crate::model::*;
-use chrono::Utc;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
@@ -45,12 +44,7 @@ impl DeviceStore for MemoryStore {
             .insert(device.id.clone(), device);
     }
 
-    async fn append_measurement(
-        &self,
-        device_id: &str,
-        metric: &str,
-        point: HistoricalPoint,
-    ) {
+    async fn append_measurement(&self, device_id: &str, metric: &str, point: HistoricalPoint) {
         let key = format!("{}:{}", device_id, metric);
         let mut history = self.history.write().unwrap();
         history.entry(key).or_default().push(point);
@@ -60,18 +54,17 @@ impl DeviceStore for MemoryStore {
         &self,
         device_id: &str,
         metric: &str,
-        range: TimeRange,
+        start_ms: i64,
+        end_ms: i64,
     ) -> Vec<HistoricalPoint> {
         let key = format!("{}:{}", device_id, metric);
-        let now = Utc::now().timestamp_millis();
-        let cutoff = now - range.as_duration_ms();
         let history = self.history.read().unwrap();
         history
             .get(&key)
             .map(|points| {
                 points
                     .iter()
-                    .filter(|p| p.timestamp >= cutoff)
+                    .filter(|p| p.timestamp >= start_ms && p.timestamp <= end_ms)
                     .cloned()
                     .collect()
             })
@@ -87,7 +80,11 @@ impl DeviceStore for MemoryStore {
     }
 
     async fn on_data_ingested(&self, device_ids: &[String]) {
-        tracing::debug!("data ingested for {} device(s): {:?}", device_ids.len(), device_ids);
+        tracing::debug!(
+            "data ingested for {} device(s): {:?}",
+            device_ids.len(),
+            device_ids
+        );
     }
 }
 

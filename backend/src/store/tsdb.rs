@@ -23,13 +23,18 @@ use chrono::{Duration, NaiveDate, TimeZone, Utc};
 use nekostore::{BatchFile, Sample, Value, ValueType};
 
 use crate::model::*;
-use crate::store::{DeviceStore, TimeRange};
+use crate::store::DeviceStore;
 
 /// Map a device metric key to a nekostore series ID (stable hash).
 fn series_id(device_id: &str, metric: &str) -> u32 {
     // FNV-1a 32-bit over "device_id\0metric".
     let mut h: u32 = 0x811c_9dc5;
-    for b in device_id.as_bytes().iter().chain(&[0]).chain(metric.as_bytes()) {
+    for b in device_id
+        .as_bytes()
+        .iter()
+        .chain(&[0])
+        .chain(metric.as_bytes())
+    {
         h ^= *b as u32;
         h = h.wrapping_mul(0x0100_0193);
     }
@@ -182,12 +187,7 @@ impl DeviceStore for TsdStore {
             .insert(device.id.clone(), device);
     }
 
-    async fn append_measurement(
-        &self,
-        device_id: &str,
-        metric: &str,
-        point: HistoricalPoint,
-    ) {
+    async fn append_measurement(&self, device_id: &str, metric: &str, point: HistoricalPoint) {
         if let Err(e) = self.append_point(device_id, metric, &point) {
             tracing::error!("tsdb append failed for {device_id}/{metric}: {e}");
         }
@@ -197,11 +197,10 @@ impl DeviceStore for TsdStore {
         &self,
         device_id: &str,
         metric: &str,
-        range: TimeRange,
+        start_ms: i64,
+        end_ms: i64,
     ) -> Vec<HistoricalPoint> {
-        let now = Utc::now().timestamp_millis();
-        let start = now - range.as_duration_ms();
-        self.read_points(device_id, metric, start, now)
+        self.read_points(device_id, metric, start_ms, end_ms)
     }
 
     async fn get_scene(&self) -> FactoryScene {

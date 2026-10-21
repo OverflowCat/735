@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 pub type Store = Arc<dyn DeviceStore + Send + Sync>;
 
-/// Time range for historical queries.
+/// Relative time window for historical queries (resolved against "now" at the API layer).
 #[derive(Debug, Clone, Copy)]
 pub enum TimeRange {
     Minutes15,
@@ -66,19 +66,15 @@ pub trait DeviceStore: Send + Sync {
 
     /// Append a measurement point for a device+metric.
     /// The store should keep points ordered by timestamp.
-    async fn append_measurement(
-        &self,
-        device_id: &str,
-        metric: &str,
-        point: HistoricalPoint,
-    );
+    async fn append_measurement(&self, device_id: &str, metric: &str, point: HistoricalPoint);
 
-    /// Query historical points for a device+metric within a time range.
+    /// Query historical points for a device+metric within `[start_ms, end_ms]`.
     async fn query_history(
         &self,
         device_id: &str,
         metric: &str,
-        range: TimeRange,
+        start_ms: i64,
+        end_ms: i64,
     ) -> Vec<HistoricalPoint>;
 
     // ── Scene ────────────────────────────────────────────────────

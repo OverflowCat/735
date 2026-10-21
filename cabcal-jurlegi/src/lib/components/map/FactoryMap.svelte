@@ -480,7 +480,7 @@
                 x="0"
                 y="0"
                 fill="#C6ED56"
-                font-size="19"
+                font-size="20"
                 font-weight="bold"
                 class="diagram-text"
               >
@@ -500,7 +500,7 @@
                 text-anchor="middle"
                 dominant-baseline="central"
                 fill="#ffffff"
-                font-size="11"
+                font-size="12"
                 font-weight="bold"
               >
                 {device.type === 'gamma' ? 'γ' : 'Rn'}
@@ -522,7 +522,7 @@
                 text-anchor="middle"
                 dominant-baseline="central"
                 fill="#ffffff"
-                font-size="11"
+                font-size="12"
                 font-weight="bold"
               >
                 {device.type === 'gamma' ? 'γ' : 'Rn'}
@@ -531,7 +531,7 @@
                 y="28"
                 text-anchor="middle"
                 fill="#e8f5d8"
-                font-size="11"
+                font-size="12"
                 font-weight="600"
                 class="device-caption"
               >
@@ -554,7 +554,7 @@
         <circle r="18" fill="rgba(56, 189, 248, 0.2)" stroke="#38bdf8" stroke-width="2" stroke-dasharray="4 3" />
         <circle r="3" fill="#38bdf8" />
         {#if ghostDevice}
-          <text y="-26" text-anchor="middle" fill="#38bdf8" font-size="12" font-weight="600">
+          <text y="-26" text-anchor="middle" fill="#38bdf8" font-size="13" font-weight="600">
             {ghostDevice.name}
           </text>
         {/if}
@@ -724,7 +724,7 @@
   }
 
   .edit-label {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: #38bdf8;
     padding: 2px 8px;
@@ -733,12 +733,12 @@
   }
 
   .edit-tip {
-    font-size: 12px;
+    font-size: 13px;
     color: #94a3b8;
   }
 
   .placing-hint {
-    font-size: 12px;
+    font-size: 13px;
     color: #f59e0b;
   }
 
@@ -751,7 +751,7 @@
     border-radius: 4px;
     background: rgba(15, 23, 42, 0.75);
     color: #94a3b8;
-    font-size: 11px;
+    font-size: 12px;
     font-family: 'Courier New', monospace;
     pointer-events: none;
     border: 1px solid rgba(255, 255, 255, 0.1);

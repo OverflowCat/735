@@ -2,7 +2,7 @@
 
 import type { Device, HistoricalPoint } from '../types/device';
 import type { FactoryScene } from '../types/scene';
-import type { DeviceDataSource, TimeRange } from './data-source';
+import type { DeviceDataSource, HistoryQuery } from './data-source';
 
 const BASE = '/api/v1';
 
@@ -55,9 +55,15 @@ export class HttpDeviceDataSource implements DeviceDataSource {
   async getHistory(
     deviceId: string,
     metric: string,
-    range: TimeRange,
+    query: HistoryQuery,
   ): Promise<HistoricalPoint[]> {
-    const params = new URLSearchParams({ metric, range });
+    const params = new URLSearchParams({ metric });
+    if (query.kind === 'absolute') {
+      params.set('start_ms', String(query.startMs));
+      params.set('end_ms', String(query.endMs));
+    } else {
+      params.set('range', query.range);
+    }
     return this.get<HistoricalPoint[]>(
       `/devices/${encodeURIComponent(deviceId)}/history?${params}`,
     );

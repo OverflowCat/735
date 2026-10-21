@@ -71,13 +71,13 @@
     align-items: center;
     gap: 8px;
     font-weight: 600;
-    font-size: 15px;
+    font-size: 16px;
     color: var(--text-primary);
     white-space: nowrap;
   }
 
   .brand-icon {
-    font-size: 18px;
+    font-size: 19px;
     color: var(--accent);
   }
 
