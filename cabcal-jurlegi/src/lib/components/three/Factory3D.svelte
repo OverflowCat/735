@@ -25,16 +25,25 @@
   }
 
   function alarmColor(device: Device): number {
-    if (device.alarms.length === 0) return 0x1e2630;
+    if (device.alarms.length === 0) return 0x223322;
     const maxLevel = Math.max(...device.alarms.map((a) => a.level));
-    return maxLevel === 2 ? 0x7f1d1d : 0x78350f;
+    return maxLevel === 2 ? 0xef4444 : 0xf59e0b;
   }
 
-  function objectColor(kind: string): number {
-    if (kind === 'wall') return 0x3a4a5c;
-    if (kind === 'machine') return 0x555555;
-    if (kind === 'area') return 0x1a2028;
-    return 0x333333;
+  function parseHexColor(hexStr?: string, fallback = 0x475569): number {
+    if (!hexStr) return fallback;
+    if (hexStr.startsWith('url(')) {
+      if (hexStr.includes('c19')) return 0xb7b626;
+      if (hexStr.includes('c35')) return 0x7b8087;
+      if (hexStr.includes('c3')) return 0xbf923a;
+      if (hexStr.includes('filter')) return 0x3494a5;
+      if (hexStr.includes('hydromet')) return 0x8a998a;
+    }
+    try {
+      return new THREE.Color(hexStr).getHex();
+    } catch {
+      return fallback;
+    }
   }
 
   function buildScene() {
@@ -45,37 +54,97 @@
     }
     deviceMeshes.clear();
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    // 环境光与平行阳光
+    const ambient = new THREE.AmbientLight(0xffffff, 0.75);
     threeScene.add(ambient);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(200, 300, 200);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
+    dirLight.position.set(400, 700, 300);
     threeScene.add(dirLight);
 
+    // 补光，照亮侧面
+    const fillLight = new THREE.DirectionalLight(0xa5c49b, 0.4);
+    fillLight.position.set(-300, 400, -200);
+    threeScene.add(fillLight);
+
+    // 地面（与 2D 草地颜色 #77A56B 一致）
+    const groundColor = parseHexColor(appState.scene.backgroundColor, 0x77a56b);
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(1400, 1000),
-      new THREE.MeshStandardMaterial({ color: 0x0f1419, side: THREE.DoubleSide }),
+      new THREE.PlaneGeometry(1600, 1200),
+      new THREE.MeshStandardMaterial({
+        color: groundColor,
+        roughness: 0.85,
+        metalness: 0.05,
+        side: THREE.DoubleSide,
+      }),
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(600, -1, 400);
     threeScene.add(ground);
 
+    // 建筑物渲染
     for (const obj of appState.scene.objects) {
-      const height = obj.kind === 'wall' ? 30 : obj.kind === 'machine' ? 20 : 2;
-      const geo = new THREE.BoxGeometry(obj.width, height, obj.height);
-      const mat = new THREE.MeshStandardMaterial({
-        color: objectColor(obj.kind),
-        transparent: obj.kind === 'area',
-        opacity: obj.kind === 'area' ? 0.3 : 1,
-      });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(
-        obj.x + obj.width / 2,
-        obj.kind === 'wall' ? 15 : obj.kind === 'machine' ? 10 : 1,
-        obj.y + obj.height / 2,
-      );
-      threeScene.add(mesh);
+      const height = 45;
+      const mainColor = parseHexColor(obj.fill, 0x475569);
+
+      if (obj.shape === 'polygon' && obj.points && obj.points.length >= 3) {
+        // 多边形挤压（C35 拐角厂房）
+        // 关键几何变换：2D 的点为 (x, y)，在数学笛卡尔坐标中取 (x, -y)
+        const shape = new THREE.Shape();
+        shape.moveTo(obj.points[0][0], -obj.points[0][1]);
+        for (let i = 1; i < obj.points.length; i++) {
+          shape.lineTo(obj.points[i][0], -obj.points[i][1]);
+        }
+        shape.closePath();
+
+        const extrudeSettings: THREE.ExtrudeGeometryOptions = {
+          depth: height,
+          bevelEnabled: false, // 硬朗工业边缘，不产生畸变
+        };
+        const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+
+        // 刚体旋转 -Math.PI / 2：使 -y 旋转到 +Z 轴（深度与 2D 坐标 y 绝对一致），厚度 depth 沿 +Y 轴直立向上！
+        geo.rotateX(-Math.PI / 2);
+        geo.computeVertexNormals();
+
+        const mat = new THREE.MeshStandardMaterial({
+          color: mainColor,
+          roughness: 0.35,
+          metalness: 0.15,
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(0, 0, 0);
+
+        // 轮廓线条增强立体感
+        const edges = new THREE.EdgesGeometry(geo);
+        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x222222, linewidth: 1 }));
+        mesh.add(line);
+
+        threeScene.add(mesh);
+      } else if (obj.x !== undefined && obj.y !== undefined && obj.width && obj.height) {
+        // 矩形建筑（C19, C3, 集中过滤厂房, 水冶厂）
+        const geo = new THREE.BoxGeometry(obj.width, height, obj.height);
+        const mat = new THREE.MeshStandardMaterial({
+          color: mainColor,
+          roughness: 0.35,
+          metalness: 0.15,
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(
+          obj.x + obj.width / 2,
+          height / 2,
+          obj.y + obj.height / 2,
+        );
+
+        // 轮廓线条增强立体感
+        const edges = new THREE.EdgesGeometry(geo);
+        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x222222, linewidth: 1 }));
+        mesh.add(line);
+
+        threeScene.add(mesh);
+      }
     }
 
+    // 设备监测仪点位渲染
     for (const placement of appState.scene.devices) {
       const device = deviceById(placement.deviceId);
       if (!device) continue;
@@ -83,17 +152,26 @@
       const group = new THREE.Group();
       group.userData = { deviceId: device.id };
 
-      const baseGeo = new THREE.CylinderGeometry(18, 18, 30, 16);
-      const baseMat = new THREE.MeshStandardMaterial({ color: alarmColor(device) });
+      // 监测仪柱体底座
+      const baseGeo = new THREE.CylinderGeometry(12, 14, 24, 16);
+      const baseMat = new THREE.MeshStandardMaterial({
+        color: alarmColor(device),
+        roughness: 0.3,
+      });
       const base = new THREE.Mesh(baseGeo, baseMat);
-      base.position.y = 20;
+      base.position.y = 12;
       group.add(base);
 
-      const ringGeo = new THREE.TorusGeometry(20, 3, 8, 24);
-      const ringMat = new THREE.MeshStandardMaterial({ color: statusColor(device.status) });
+      // 状态光环
+      const ringGeo = new THREE.TorusGeometry(16, 2.5, 8, 24);
+      const ringMat = new THREE.MeshStandardMaterial({
+        color: statusColor(device.status),
+        emissive: statusColor(device.status),
+        emissiveIntensity: 0.7,
+      });
       const ring = new THREE.Mesh(ringGeo, ringMat);
       ring.rotation.x = -Math.PI / 2;
-      ring.position.y = 36;
+      ring.position.y = 26;
       group.add(ring);
 
       group.position.set(placement.x, 0, placement.y);
@@ -134,17 +212,18 @@
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(containerEl.clientWidth, containerEl.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setClearColor(0x0f1419);
+    renderer.setClearColor(0x1e2e1a);
     containerEl.appendChild(renderer.domElement);
 
     threeScene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(
-      50,
+      45,
       containerEl.clientWidth / containerEl.clientHeight,
       1,
       5000,
     );
-    camera.position.set(600, 600, 800);
+    // 摄像机视角：略微俯视居中厂区，便于总览全厂建筑与设备
+    camera.position.set(600, 750, 850);
     camera.lookAt(600, 0, 400);
 
     controls = new OrbitControls(camera, renderer.domElement);

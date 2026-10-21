@@ -2,8 +2,9 @@ import type { Device } from '../types/device';
 import type { FactoryScene } from '../types/scene';
 import type { DeviceDataSource } from '../services/data-source';
 import { HttpDeviceDataSource } from '../services/http-data-source';
+import { mockDevices, mockScene } from '../data/mock';
 
-// Singleton data source — HTTP only, no mock fallback.
+// Singleton data source — HTTP first, with mock data fallback.
 // Set VITE_API_BASE to point at a remote backend (e.g. http://192.168.1.10:3000).
 const apiBase = import.meta.env.VITE_API_BASE ?? '';
 const ds: DeviceDataSource = new HttpDeviceDataSource(apiBase);
@@ -13,13 +14,8 @@ const ds: DeviceDataSource = new HttpDeviceDataSource(apiBase);
 // We wrap all mutable state in a single exported object.
 
 class AppState {
-  devices: Device[] = $state([]);
-  scene: FactoryScene = $state<FactoryScene>({
-    width: 1200,
-    height: 800,
-    objects: [],
-    devices: [],
-  });
+  devices: Device[] = $state(mockDevices);
+  scene: FactoryScene = $state<FactoryScene>(mockScene);
   selectedDeviceId: string | null = $state(null);
   editMode = $state(false);
   viewMode: '2d' | '3d' = $state('2d');
@@ -48,11 +44,25 @@ export function navigate(route: string) {
 }
 
 export async function loadDevices() {
-  appState.devices = await ds.getDevices();
+  try {
+    const remote = await ds.getDevices();
+    if (remote && remote.length > 0) {
+      appState.devices = remote;
+    }
+  } catch (err) {
+    console.warn('Backend unavailable, using mock devices', err);
+  }
 }
 
 export async function loadScene() {
-  appState.scene = await ds.getScene();
+  try {
+    const remote = await ds.getScene();
+    if (remote && remote.objects && remote.objects.length > 0) {
+      appState.scene = remote;
+    }
+  } catch (err) {
+    console.warn('Backend unavailable, using mock scene', err);
+  }
 }
 
 export async function saveScene() {
