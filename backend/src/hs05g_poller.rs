@@ -3,8 +3,8 @@
 
 use crate::model::*;
 use crate::store::Store;
-use hs05g::protocol::{DataPacket, NodeData, Response};
 use hs05g::HubClient;
+use hs05g::protocol::{DataPacket, NodeData, Response};
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::time;

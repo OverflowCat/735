@@ -1,8 +1,10 @@
 mod api;
+mod devices;
 mod gamma;
 mod gamma_poller;
 mod hs05g_poller;
 mod model;
+mod radon_rs485;
 mod store;
 
 use clap::Parser;
@@ -33,11 +35,15 @@ struct Cli {
     #[arg(long, default_value = "STATION-01")]
     station: String,
 
+    /// Device inventory JSON (id/addr/gammaAddr/radonNode). Preferred over --gamma.
+    #[arg(long)]
+    devices: Option<std::path::PathBuf>,
+
     /// Gamma dose-rate monitor serial-tunnel addresses (host:port), repeatable
     #[arg(long = "gamma")]
     gammas: Vec<String>,
 
-    /// RMS-200 display-unit address (0~FF) for all gamma devices
+    /// RMS-200 display-unit address (0~FF) for --gamma devices
     #[arg(long, default_value = "1")]
     gamma_addr: u8,
 
@@ -93,7 +99,26 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("registered HS05G hub poller for {}", addr);
     }
 
-    // Start gamma dose-rate pollers (RMS-200).
+    // Device inventory (SN ids). Radon is probed on every shared-bus tunnel.
+    let mut n_gamma = 0usize;
+    if let Some(path) = &cli.devices {
+        let list = devices::load_devices(path)?;
+        for entry in &list {
+            let cfg = GammaConfig {
+                addr: entry.addr.clone(),
+                source_id: entry.id.clone(),
+                interval_secs: cli.gamma_interval,
+                station: cli.station.clone(),
+                device_name: entry.display_name(),
+                device_addr: entry.gamma_addr,
+            };
+            n_gamma += 1;
+            gamma_poller::spawn_gamma_poller(cfg, store.clone());
+            tracing::info!("registered device poller {} -> {}", entry.id, entry.addr);
+        }
+    }
+
+    // Legacy --gamma pollers (same shared-bus radon probe).
     for (i, addr) in cli.gammas.iter().enumerate() {
         let source_id = format!("gamma_{:02}", i + 1);
         let gamma_config = GammaConfig {
@@ -104,9 +129,15 @@ async fn main() -> anyhow::Result<()> {
             device_name: cli.gamma_name.clone(),
             device_addr: cli.gamma_addr,
         };
+        n_gamma += 1;
         gamma_poller::spawn_gamma_poller(gamma_config, store.clone());
         tracing::info!("registered gamma poller for {}", addr);
     }
+
+    tracing::info!(
+        "device summary: {} gamma poller(s) [all probe radon on same bus]",
+        n_gamma
+    );
 
     // Build and start HTTP server.
     let app = api::router(store);

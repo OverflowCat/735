@@ -32,10 +32,7 @@ fn api_routes(store: Store) -> Router {
         )
         .route("/scene", axum::routing::get(scene::get_scene))
         .route("/scene", axum::routing::put(scene::update_scene))
-        .route(
-            "/monitor/data",
-            axum::routing::post(upload::upload_data),
-        )
+        .route("/monitor/data", axum::routing::post(upload::upload_data))
         .route(
             "/device/heartbeat",
             axum::routing::post(upload::upload_heartbeat),

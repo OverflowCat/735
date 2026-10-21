@@ -15,7 +15,7 @@
 // Example: 22 EC 01 → 0x22EC=8940 → 8.940 * 10^1 = 89.4 nGy/h
 // Example: 03 E8 04 → 0x03E8=1000 → 1.000 * 10^4 = 1.000e4 nGy/h
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use socket2::{SockRef, TcpKeepalive};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -125,9 +125,11 @@ impl RmsClient {
         let stream = tokio::time::timeout(Duration::from_secs(5), TcpStream::connect(endpoint))
             .await
             .with_context(|| format!("rms200: connect timeout to {}", endpoint))??;
-        apply_keepalive(&stream)
-            .with_context(|| format!("rms200: set keepalive {}", endpoint))?;
-        info!("rms200: connected to {} (addr=0x{:02X})", endpoint, device_addr);
+        apply_keepalive(&stream).with_context(|| format!("rms200: set keepalive {}", endpoint))?;
+        info!(
+            "rms200: connected to {} (addr=0x{:02X})",
+            endpoint, device_addr
+        );
         Ok(Self {
             stream,
             endpoint: endpoint.to_string(),
@@ -137,6 +139,11 @@ impl RmsClient {
 
     pub fn device_addr(&self) -> u8 {
         self.device_addr
+    }
+
+    /// Borrow the underlying serial-tunnel stream (for a shared-bus protocol turn).
+    pub fn stream_mut(&mut self) -> &mut TcpStream {
+        &mut self.stream
     }
 
     pub fn set_device_addr(&mut self, addr: u8) {
@@ -241,14 +248,7 @@ impl RmsClient {
     /// Param-count byte is 0x04 (1-byte address + 3-byte threshold).
     pub async fn set_alarm_threshold(&mut self, value: f64) -> Result<()> {
         let t = encode_scientific(value);
-        let cmd = frame(&[
-            CMD_SET_ALARM,
-            0x04,
-            self.device_addr,
-            t[0],
-            t[1],
-            t[2],
-        ]);
+        let cmd = frame(&[CMD_SET_ALARM, 0x04, self.device_addr, t[0], t[1], t[2]]);
         let resp = self.transact(&cmd, 2, RESP_SET_ALARM).await?;
         Self::verify_checksum(&resp)?;
         Ok(())
@@ -281,7 +281,10 @@ mod tests {
         let t = encode_scientific(10000.0); // 03 E8 04
         let f = frame(&[CMD_SET_ALARM, 0x04, 0x01, t[0], t[1], t[2]]);
         assert_eq!(f[0], 0x7C);
-        assert_eq!(f[1], 0x04, "param count must be 04 (addr+3 threshold bytes)");
+        assert_eq!(
+            f[1], 0x04,
+            "param count must be 04 (addr+3 threshold bytes)"
+        );
         assert_eq!(&f[2..6], &[0x01, 0x03, 0xE8, 0x04]);
         assert_eq!(f[6], checksum(&f[..6]));
     }

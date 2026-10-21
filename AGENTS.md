@@ -109,10 +109,37 @@ nmcli con up "有线连接 1" ifname enaphyt36i2
 | 项 | 值 |
 |----|-----|
 | backend | `systemd` 单元 `735-backend.service`（enabled） |
-| 命令 | `/opt/735/bin/backend --listen 0.0.0.0:3000 --station STATION-01 --data-dir /opt/735/data --gamma-interval 30 --gamma-addr 1 --gamma 192.168.10.X:4000` ×20 |
+| 命令 | `/opt/735/bin/backend --listen 0.0.0.0:3000 --station STATION-01 --data-dir /opt/735/data --gamma-interval 30 --gamma-addr 1 --devices /opt/735/devices.json` + 旧网段 `--gamma 192.168.10.X:4000` ×20 |
 | 前端 | `python3 /opt/735/serve.py` → `:8080`（`735-frontend.service`） |
 | 联调脚本 | `python3 /opt/735/test_gamma_devices.py [IP…]` |
 | 有线地址 | `enaphyt36i2`：`192.168.10.2/24` + `192.168.10.10/24`（NetworkManager 已持久化） |
+
+### 设备清单（SN）与氡共享 485（2026-10-21）
+
+现场资产编号 `20260129XX`。**寻址约定：`SN+10 = IP 末段`，端口 `90(IP末段)`**。例：`2026012929` → `192.168.10.39:9039`。
+
+**氡的 RS485 并在 RMS-200 同一条总线上**，同一 DTU/同一 IP。对有氡的设备，在读完 RMS-200 剂量率后，用 HS05G 探头 RS485 帧读节点：
+
+- 请求 `A5 5A <node_id> 03 03 03 00 00`（8 字节 ReadData）
+- 应答 `A5 5A <node_id> radon_hi radon_lo count_hi count_lo temp humidity period node_id`（11 字节）
+- 氡浓度为大端 u16，单位 Bq/m³。实现：`backend/src/radon_rs485.rs`；由 `gamma_poller` 在同一 TCP 连接上轮询。
+
+按清单启用（`devices.json` / `--devices`）：
+
+| 采区 | SN | 端点 | 氡节点 |
+|------|----|------|--------|
+| c35 | 2026012914 | 192.168.10.24:9024 | — |
+| c35 | 2026012903 | 192.168.10.13:9013 | **36** |
+| c35 | 2026012923 | 192.168.10.33:9033 | — |
+| c19 | 2026012904 | 192.168.10.14:9014 | **35** |
+| c19 | 2026012928 | 192.168.10.38:9038 | — |
+| c3 | 2026012905 | 192.168.10.15:9015 | **37** |
+| c3 | 2026012917 | 192.168.10.27:9027 | — |
+| 集中过滤厂房 | 2026012918 | 192.168.10.28:9028 | — |
+| 集中过滤厂房 | 2026012924 | 192.168.10.34:9034 | — |
+| 集中过滤厂房 | 2026012929 | 192.168.10.39:9039 | — |
+
+氡设备 id 为 `radon-<node>`（如 `radon-36`），指标码 `0102060302`。前端默认地图位次见 `cabcal-jurlegi/src/lib/data/mock/scene.ts`。
 
 ### γ 协议：RMS-200 / RMS-2000 显示单元
 
@@ -140,7 +167,7 @@ nmcli con up "有线连接 1" ifname enaphyt36i2
 - systemd 单元 `/etc/systemd/system/735-backend.service` 的 ExecStart 需含 `--gamma-addr 1`，**不要**再传 `--gamma-name γ能谱仪`（旧参数）。副本在 `/opt/735/735-backend.service`。
 - **不要用 `pkill` 重启 backend**：进程会以退出码 0 结束，`Restart=on-failure` 不会拉起。改用 `sudo systemctl restart 735-backend`。
 - 节点上 `sudo` 需要密码（用户 `yy` 在 sudo 组，无 NOPASSWD）。服务文件 root 所有。
-- 校验：`curl http://127.0.0.1:3000/api/v1/devices` 应见 20 台在线；`journalctl -u 735-backend` 有 `rms200:` / `dose_rate=` 行。
+- 校验：`curl http://127.0.0.1:3000/api/v1/devices`；`journalctl -u 735-backend` 有 `registered device poller` / `device summary` / `dose_rate=` 行。
 
 ## 注意事项
 

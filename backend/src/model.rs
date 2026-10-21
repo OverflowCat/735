@@ -1,7 +1,6 @@
 // Domain types matching the frontend TypeScript types.
 // These are the canonical API response shapes.
 
-
 use serde::{Deserialize, Serialize};
 
 // ── Protocol types (from protocol.typ) ───────────────────────────

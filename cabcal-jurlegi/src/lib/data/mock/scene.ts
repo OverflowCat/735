@@ -121,14 +121,37 @@ export const mockScene: FactoryScene = {
     },
   ],
   devices: [
-    // 集中过滤厂房左侧的监测点 1-1 和 1-2（精确按图呈现在空地上）
-    { deviceId: 'dev-gamma-001', x: 535, y: 125, labelStyle: 'text' },
-    { deviceId: 'dev-radon-001', x: 535, y: 160, labelStyle: 'text' },
-    // 其余设备作为可选监测探头
-    { deviceId: 'dev-gamma-002', x: 385, y: 80, labelStyle: 'compact' },
-    { deviceId: 'dev-radon-002', x: 450, y: 250, labelStyle: 'compact' },
-    { deviceId: 'dev-gamma-003', x: 450, y: 460, labelStyle: 'compact' },
-    { deviceId: 'dev-radon-003', x: 860, y: 550, labelStyle: 'compact' },
-    { deviceId: 'dev-gamma-004', x: 280, y: 580, labelStyle: 'compact' },
+    // ── 水冶厂：当前接入的 20 台 γ（5×4 均匀网格）+ 伴生氡 ──
+    // row 0 (y=420)
+    { deviceId: 'gamma_01', x: 525, y: 420, labelStyle: 'compact' },
+    { deviceId: 'radon-39', x: 547, y: 442, labelStyle: 'compact' },
+    { deviceId: 'gamma_02', x: 595, y: 420, labelStyle: 'compact' },
+    { deviceId: 'radon-32', x: 617, y: 442, labelStyle: 'compact' },
+    { deviceId: 'gamma_03', x: 665, y: 420, labelStyle: 'compact' },
+    { deviceId: 'radon-38', x: 687, y: 442, labelStyle: 'compact' },
+    { deviceId: 'gamma_04', x: 735, y: 420, labelStyle: 'compact' },
+    { deviceId: 'radon-34', x: 757, y: 442, labelStyle: 'compact' },
+    { deviceId: 'gamma_05', x: 805, y: 420, labelStyle: 'compact' },
+    { deviceId: 'radon-31', x: 827, y: 442, labelStyle: 'compact' },
+    // row 1 (y=500)
+    { deviceId: 'gamma_06', x: 525, y: 500, labelStyle: 'compact' },
+    { deviceId: 'radon-30', x: 547, y: 522, labelStyle: 'compact' },
+    { deviceId: 'gamma_07', x: 595, y: 500, labelStyle: 'compact' },
+    { deviceId: 'radon-33', x: 617, y: 522, labelStyle: 'compact' },
+    { deviceId: 'gamma_08', x: 665, y: 500, labelStyle: 'compact' },
+    { deviceId: 'gamma_09', x: 735, y: 500, labelStyle: 'compact' },
+    { deviceId: 'gamma_10', x: 805, y: 500, labelStyle: 'compact' },
+    // row 2 (y=580)
+    { deviceId: 'gamma_11', x: 525, y: 580, labelStyle: 'compact' },
+    { deviceId: 'gamma_12', x: 595, y: 580, labelStyle: 'compact' },
+    { deviceId: 'gamma_13', x: 665, y: 580, labelStyle: 'compact' },
+    { deviceId: 'gamma_14', x: 735, y: 580, labelStyle: 'compact' },
+    { deviceId: 'gamma_15', x: 805, y: 580, labelStyle: 'compact' },
+    // row 3 (y=650)
+    { deviceId: 'gamma_16', x: 525, y: 650, labelStyle: 'compact' },
+    { deviceId: 'gamma_17', x: 595, y: 650, labelStyle: 'compact' },
+    { deviceId: 'gamma_18', x: 665, y: 650, labelStyle: 'compact' },
+    { deviceId: 'gamma_19', x: 735, y: 650, labelStyle: 'compact' },
+    { deviceId: 'gamma_20', x: 805, y: 650, labelStyle: 'compact' },
   ],
 };

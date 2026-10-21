@@ -1,5 +1,5 @@
-use axum::extract::State;
 use axum::Json;
+use axum::extract::State;
 use chrono::Utc;
 
 use crate::model::*;
@@ -49,7 +49,10 @@ pub async fn upload_data(
 
         // Append each metric value to history.
         for m in &report.metrics {
-            let ts = m.timestamp.parse::<i64>().unwrap_or(Utc::now().timestamp_millis());
+            let ts = m
+                .timestamp
+                .parse::<i64>()
+                .unwrap_or(Utc::now().timestamp_millis());
             store
                 .append_measurement(
                     &report.device,
@@ -94,7 +97,10 @@ pub async fn upload_heartbeat(
             device_type: report.device_type.clone(),
             station: report.station.clone(),
             status: report.status.clone(),
-            metrics: existing.as_ref().map(|d| d.metrics.clone()).unwrap_or_default(),
+            metrics: existing
+                .as_ref()
+                .map(|d| d.metrics.clone())
+                .unwrap_or_default(),
             last_update: Utc::now().to_rfc3339(),
             alarms: existing.map(|d| d.alarms).unwrap_or_default(),
         };
