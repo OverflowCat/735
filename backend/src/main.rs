@@ -33,16 +33,20 @@ struct Cli {
     #[arg(long, default_value = "STATION-01")]
     station: String,
 
-    /// Gamma spectrometer addresses to poll (host:port), repeatable
+    /// Gamma dose-rate monitor serial-tunnel addresses (host:port), repeatable
     #[arg(long = "gamma")]
     gammas: Vec<String>,
+
+    /// RMS-200 display-unit address (0~FF) for all gamma devices
+    #[arg(long, default_value = "1")]
+    gamma_addr: u8,
 
     /// Gamma polling interval in seconds
     #[arg(long, default_value = "30")]
     gamma_interval: u64,
 
     /// Gamma device human-readable name
-    #[arg(long, default_value = "γ能谱仪")]
+    #[arg(long, default_value = "γ剂量率监测仪")]
     gamma_name: String,
 
     /// Persistent data directory (uses nekostore-backed store; omit for in-memory)
@@ -89,7 +93,7 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("registered HS05G hub poller for {}", addr);
     }
 
-    // Start gamma spectrometer pollers.
+    // Start gamma dose-rate pollers (RMS-200).
     for (i, addr) in cli.gammas.iter().enumerate() {
         let source_id = format!("gamma_{:02}", i + 1);
         let gamma_config = GammaConfig {
@@ -98,6 +102,7 @@ async fn main() -> anyhow::Result<()> {
             interval_secs: cli.gamma_interval,
             station: cli.station.clone(),
             device_name: cli.gamma_name.clone(),
+            device_addr: cli.gamma_addr,
         };
         gamma_poller::spawn_gamma_poller(gamma_config, store.clone());
         tracing::info!("registered gamma poller for {}", addr);

@@ -96,7 +96,7 @@ nmcli con up "有线连接 1" ifname enaphyt36i2
 
 现场盒子是 **EPORT HF5111B** 串口服务器（Web `admin:admin`，telnet 23 同账号），不是仪器本体：
 
-- UART：`9600 8N1`，串口挂 γ 能谱仪
+- UART：`9600 8N1`，串口挂 γ 剂量率仪（RMS-2000 显示单元）
 - 原厂 SOCK 为 `TCP-CLIENT` → `192.168.10.10:90XX`（XX=IP 末段），`Rout=uart` 透传
 - 现已统一改为 **`TCP-SERVER` `LocalPort=4000`**，便于 backend 以 `--gamma IP:4000` 直接拨入
 - Web 配置 API：`POST http://IP/cmd`，body 为 `msg={"CID":…,"PL":…}`
@@ -114,7 +114,9 @@ nmcli con up "有线连接 1" ifname enaphyt36i2
 | 联调脚本 | `python3 /opt/735/test_gamma_devices.py [IP…]` |
 | 有线地址 | `enaphyt36i2`：`192.168.10.2/24` + `192.168.10.10/24`（NetworkManager 已持久化） |
 
-**测数结论（2026-10-20）**：20 台 TCP `:4000` 均可连上，但发送 `#READ_SPECTRUM` / `0x9090` 后 **串口无回传**（UART `RecvBytes=0`），backend 日志为 `spectrum read timeout (no data)`，`/api/v1/devices` 暂为空。需现场确认能谱仪接线、供电、波特率；仪表一有回传即可出数。
+**协议**：γ 剂量率仪为 **RMS-200 / RMS-2000 显示单元**协议（见 `RMS-200.txt`）。读剂量率 `1D 01 <addr> <check>`；设置报警限为 **`7C 04`**（参数个数=地址1+阈值3，非 02）。HS05G 仅用于氡，不是 gamma 协议。
+
+**测数结论（2026-10-20）**：20/20 台 TCP `:4000` 按 RMS-200 均可读到剂量率（约 250–1550 nGy/h，`addr=0x01`）。旧版误用 `#READ_SPECTRUM` / `0x9090` 导致无回传。报警限多为 `1.000e5` nGy/h（`.20` 为 `4.880e4`）。联调：`python3 /opt/735/test_gamma_devices.py`。
 
 ## 注意事项
 
