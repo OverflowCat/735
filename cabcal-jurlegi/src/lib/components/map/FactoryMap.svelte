@@ -1,19 +1,39 @@
 <script lang="ts">
-  import { appState, selectDevice, moveDevice, addDevicePlacement } from '../../state/app-state.svelte';
+  import {
+    appState,
+    selectDevice,
+    moveDevice,
+    addDevicePlacement,
+    beginPlacementChange,
+    setEditSelection,
+    removeDevicePlacement,
+    nudgeSelectedPlacement,
+    undoPlacement,
+    redoPlacement,
+    snapValue,
+    cancelPlacing,
+  } from '../../state/app-state.svelte';
   import type { Device } from '../../types/device';
-  import type { SceneObject } from '../../types/scene';
 
   let svgEl = $state<SVGSVGElement | null>(null);
-  let dragging = $state<string | null>(null);
+
+  // --- Interaction state ---
+  let draggingId = $state<string | null>(null);
+  let dragMoved = $state(false);
+  let dragUndoPushed = false;
   let dragOffset = $state({ x: 0, y: 0 });
+  let dragStartScreen = $state({ x: 0, y: 0 });
   let viewBox = $state({ x: 0, y: 0, w: 1200, h: 800 });
   let isPanning = $state(false);
   let panStart = $state({ x: 0, y: 0 });
-  let placingDevice = $state<string | null>(null);
+  let ghost = $state<{ x: number; y: number } | null>(null);
+  let hoverDeviceId = $state<string | null>(null);
+  let pointerId = $state<number | null>(null);
 
-  const unplacedDevices = $derived(
-    appState.devices.filter((d) => !appState.scene.devices.find((p) => p.deviceId === d.id))
-  );
+  const placingDevice = $derived(appState.placingDeviceId);
+
+  /** Screen pixels before a press counts as a drag rather than a click. */
+  const DRAG_THRESHOLD = 4;
 
   function deviceById(id: string): Device | undefined {
     return appState.devices.find((d) => d.id === id);
@@ -43,7 +63,7 @@
     return pts.map(([x, y]) => `${x},${y}`).join(' ');
   }
 
-  function svgPoint(e: MouseEvent): { x: number; y: number } {
+  function svgPoint(e: MouseEvent | PointerEvent | WheelEvent): { x: number; y: number } {
     if (!svgEl) return { x: 0, y: 0 };
     const rect = svgEl.getBoundingClientRect();
     const scaleX = viewBox.w / rect.width;
@@ -54,41 +74,94 @@
     };
   }
 
-  function handlePointerDown(e: MouseEvent) {
+  function clampToScene(x: number, y: number): { x: number; y: number } {
+    const w = appState.scene.width || 1200;
+    const h = appState.scene.height || 800;
+    return {
+      x: Math.max(0, Math.min(w, x)),
+      y: Math.max(0, Math.min(h, y)),
+    };
+  }
+
+  function handlePointerDown(e: PointerEvent) {
+    if (e.button === 1 || (e.button === 0 && e.shiftKey && !placingDevice && !appState.editMode)) {
+      // Middle mouse or Shift+drag pans in monitoring mode.
+      startPan(e);
+      return;
+    }
+    if (e.button !== 0) return;
+
+    const pt = svgPoint(e);
+
     if (placingDevice) {
-      const pt = svgPoint(e);
-      addDevicePlacement(placingDevice, pt.x, pt.y);
-      placingDevice = null;
+      const snapped = clampToScene(snapValue(pt.x), snapValue(pt.y));
+      addDevicePlacement(placingDevice, snapped.x, snapped.y);
+      ghost = null;
       return;
     }
 
     const target = (e.target as SVGElement).closest('[data-device]') as SVGElement | null;
+
     if (target) {
       const id = target.dataset.device!;
       if (appState.editMode) {
-        dragging = id;
-        const pt = svgPoint(e);
+        draggingId = id;
+        dragMoved = false;
+        dragUndoPushed = false;
+        dragStartScreen = { x: e.clientX, y: e.clientY };
         const placement = appState.scene.devices.find((d) => d.deviceId === id);
         if (placement) {
           dragOffset = { x: pt.x - placement.x, y: pt.y - placement.y };
         }
+        setEditSelection(id);
+        selectDevice(id);
+        pointerId = e.pointerId;
+        svgEl?.setPointerCapture(e.pointerId);
         e.preventDefault();
       } else {
         selectDevice(id);
       }
-    } else if (appState.editMode) {
-      isPanning = true;
-      panStart = { x: e.clientX, y: e.clientY };
-    } else {
-      selectDevice(null);
+      return;
     }
+
+    // Empty space
+    if (appState.editMode) {
+      setEditSelection(null);
+    }
+    selectDevice(null);
+    startPan(e);
   }
 
-  function handlePointerMove(e: MouseEvent) {
-    if (dragging) {
-      const pt = svgPoint(e);
-      moveDevice(dragging, Math.round(pt.x - dragOffset.x), Math.round(pt.y - dragOffset.y));
-    } else if (isPanning) {
+  function startPan(e: PointerEvent) {
+    isPanning = true;
+    panStart = { x: e.clientX, y: e.clientY };
+    pointerId = e.pointerId;
+    svgEl?.setPointerCapture(e.pointerId);
+  }
+
+  function handlePointerMove(e: PointerEvent) {
+    const pt = svgPoint(e);
+
+    if (placingDevice) {
+      ghost = { x: snapValue(pt.x), y: snapValue(pt.y) };
+      return;
+    }
+
+    if (draggingId) {
+      const dx = e.clientX - dragStartScreen.x;
+      const dy = e.clientY - dragStartScreen.y;
+      if (!dragMoved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      if (!dragUndoPushed) {
+        beginPlacementChange();
+        dragUndoPushed = true;
+      }
+      dragMoved = true;
+      const snapped = clampToScene(snapValue(pt.x - dragOffset.x), snapValue(pt.y - dragOffset.y));
+      moveDevice(draggingId, snapped.x, snapped.y);
+      return;
+    }
+
+    if (isPanning) {
       const rect = svgEl?.getBoundingClientRect();
       if (!rect) return;
       const scaleX = viewBox.w / rect.width;
@@ -96,12 +169,36 @@
       viewBox.x -= (e.clientX - panStart.x) * scaleX;
       viewBox.y -= (e.clientY - panStart.y) * scaleY;
       panStart = { x: e.clientX, y: e.clientY };
+      return;
     }
+
+    // Hover highlight for edit affordance
+    const target = (e.target as SVGElement).closest?.('[data-device]') as SVGElement | null;
+    hoverDeviceId = target?.dataset.device ?? null;
   }
 
-  function handlePointerUp() {
-    dragging = null;
+  function handlePointerUp(e: PointerEvent) {
+    if (pointerId !== null && svgEl?.hasPointerCapture(pointerId)) {
+      svgEl.releasePointerCapture(pointerId);
+    }
+    pointerId = null;
+
+    if (draggingId) {
+      const wasClick = !dragMoved;
+      const id = draggingId;
+      draggingId = null;
+      dragMoved = false;
+      if (wasClick && appState.editMode) {
+        // Pure click in edit mode = select only (already selected on down).
+        setEditSelection(id);
+      }
+    }
     isPanning = false;
+  }
+
+  function handlePointerLeave() {
+    ghost = null;
+    hoverDeviceId = null;
   }
 
   function handleWheel(e: WheelEvent) {
@@ -114,34 +211,83 @@
     viewBox.h *= factor;
   }
 
-  function startPlacing(deviceId: string) {
-    placingDevice = deviceId;
+  function handleContextMenu(e: MouseEvent) {
+    if (!appState.editMode) return;
+    const target = (e.target as SVGElement).closest('[data-device]') as SVGElement | null;
+    if (!target) return;
+    e.preventDefault();
+    const id = target.dataset.device!;
+    removeDevicePlacement(id);
+    ghost = null;
   }
 
-  function cancelPlacing() {
-    placingDevice = null;
+  function handleKeyDown(e: KeyboardEvent) {
+    // Only when map is focused-ish / edit interactions are relevant
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+    if (e.key === 'Escape') {
+      if (placingDevice) {
+        cancelPlacing();
+        ghost = null;
+        e.preventDefault();
+      } else if (appState.editSelectionId) {
+        setEditSelection(null);
+        e.preventDefault();
+      }
+      return;
+    }
+
+    if (!appState.editMode) return;
+
+    if ((e.key === 'Delete' || e.key === 'Backspace') && appState.editSelectionId) {
+      removeDevicePlacement(appState.editSelectionId);
+      e.preventDefault();
+      return;
+    }
+
+    if (e.key === 'z' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+      undoPlacement();
+      e.preventDefault();
+      return;
+    }
+    if ((e.key === 'z' && (e.ctrlKey || e.metaKey) && e.shiftKey) || (e.key === 'y' && (e.ctrlKey || e.metaKey))) {
+      redoPlacement();
+      e.preventDefault();
+      return;
+    }
+
+    const step = e.shiftKey ? 1 : appState.gridSize;
+    if (e.key === 'ArrowLeft') {
+      nudgeSelectedPlacement(-step, 0);
+      e.preventDefault();
+    } else if (e.key === 'ArrowRight') {
+      nudgeSelectedPlacement(step, 0);
+      e.preventDefault();
+    } else if (e.key === 'ArrowUp') {
+      nudgeSelectedPlacement(0, -step);
+      e.preventDefault();
+    } else if (e.key === 'ArrowDown') {
+      nudgeSelectedPlacement(0, step);
+      e.preventDefault();
+    }
   }
+
+  // Placing is controlled via appState.placingDeviceId (shared with EditPanel).
 </script>
 
-<div class="map-container">
+<svelte:window onkeydown={handleKeyDown} />
+
+<div class="map-container" class:edit-mode={appState.editMode}>
   {#if appState.editMode}
     <div class="edit-toolbar">
       <span class="edit-label">编辑模式</span>
-      {#if unplacedDevices.length > 0}
-        <div class="device-placer">
-          <span class="placer-label">放置设备:</span>
-          {#each unplacedDevices as d}
-            <button class="small" onclick={() => startPlacing(d.id)}>
-              {d.name}
-            </button>
-          {/each}
-        </div>
-      {/if}
       {#if placingDevice}
         <span class="placing-hint">
-          点击地图放置「{deviceById(placingDevice)?.name}」
-          <button class="small" onclick={cancelPlacing}>取消</button>
+          点击地图放置「{deviceById(placingDevice)?.name}」· Esc 取消
         </span>
+      {:else}
+        <span class="edit-tip">拖动设备调位置 · 右键移除 · 点击选中编辑</span>
       {/if}
     </div>
   {/if}
@@ -155,11 +301,14 @@
     onpointerdown={handlePointerDown}
     onpointermove={handlePointerMove}
     onpointerup={handlePointerUp}
-    onpointerleave={handlePointerUp}
+    onpointercancel={handlePointerUp}
+    onpointerleave={handlePointerLeave}
     onwheel={handleWheel}
+    oncontextmenu={handleContextMenu}
     class:edit-mode={appState.editMode}
     class:placing={placingDevice !== null}
     role="application"
+    aria-label="工厂平面图"
   >
     <defs>
       <!-- 柔和立体阴影 -->
@@ -211,6 +360,18 @@
       fill={appState.scene.backgroundColor || '#77A56B'}
     />
 
+    <!-- 编辑网格 -->
+    {#if appState.editMode && appState.snapToGrid}
+      <g class="edit-grid" pointer-events="none">
+        {#each Array.from({ length: Math.floor((appState.scene.width || 1200) / appState.gridSize) + 1 }, (_, i) => i * appState.gridSize) as x}
+          <line x1={x} y1="0" x2={x} y2={appState.scene.height || 800} />
+        {/each}
+        {#each Array.from({ length: Math.floor((appState.scene.height || 800) / appState.gridSize) + 1 }, (_, i) => i * appState.gridSize) as y}
+          <line x1="0" y1={y} x2={appState.scene.width || 1200} y2={y} />
+        {/each}
+      </g>
+    {/if}
+
     <!-- 原图外框装饰暗线 -->
     <rect
       x="2"
@@ -223,7 +384,7 @@
     />
 
     <!-- 厂房建筑物渲染（2.5D 立体顶面与下部斜面厚度） -->
-    {#each appState.scene.objects as obj}
+    {#each appState.scene.objects as obj (obj.id)}
       <g class="building-group" filter="url(#building-shadow)">
         {#if obj.shape === 'polygon' && obj.points}
           <!-- 多边形立面（正面银灰立体斜坡） -->
@@ -290,16 +451,27 @@
     {/each}
 
     <!-- 现场监测设备点位与数据标注 -->
-    {#each appState.scene.devices as placement}
+    {#each appState.scene.devices as placement (placement.deviceId)}
       {@const device = deviceById(placement.deviceId)}
       {#if device}
+        {@const isSel = appState.editSelectionId === device.id || appState.selectedDeviceId === device.id}
+        {@const isHover = hoverDeviceId === device.id}
         <g
           data-device={device.id}
           transform="translate({placement.x}, {placement.y})"
           class="device-node"
-          class:selected={appState.selectedDeviceId === device.id}
-          class:dragging={dragging === device.id}
+          class:selected={isSel}
+          class:dragging={draggingId === device.id}
+          class:hovered={isHover}
+          class:edit-mode={appState.editMode}
         >
+          <!-- Generous invisible hit target (text labels are hard to grab) -->
+          <circle r="22" fill="transparent" class="hit-area" />
+
+          {#if isSel}
+            <circle class="select-ring" r="20" />
+          {/if}
+
           {#if placement.labelStyle === 'text'}
             <!-- 原图同款黄色工程技术字体，自然融入草坪 -->
             <g class="text-label-style">
@@ -315,8 +487,8 @@
                 {deviceValueText(device)}
               </text>
             </g>
-          {:else}
-            <!-- 厂区其它测点的紧凑半透明指示标 -->
+          {:else if placement.labelStyle === 'compact'}
+            <!-- 紧凑指示标（原 badge 行为） -->
             <g class="badge-style" opacity="0.85">
               <circle
                 r="12"
@@ -334,11 +506,76 @@
                 {device.type === 'gamma' ? 'γ' : 'Rn'}
               </text>
             </g>
+          {:else}
+            <!-- badge / default: marker + short code -->
+            <g class="badge-style">
+              <circle
+                r="13"
+                fill="rgba(24, 38, 22, 0.9)"
+                stroke={statusColor(device.status)}
+                stroke-width="2.5"
+              />
+              {#if alarmColor(device)}
+                <circle r="13" fill="none" stroke={alarmColor(device)} stroke-width="1.5" stroke-dasharray="3 2" />
+              {/if}
+              <text
+                text-anchor="middle"
+                dominant-baseline="central"
+                fill="#ffffff"
+                font-size="11"
+                font-weight="bold"
+              >
+                {device.type === 'gamma' ? 'γ' : 'Rn'}
+              </text>
+              <text
+                y="28"
+                text-anchor="middle"
+                fill="#e8f5d8"
+                font-size="11"
+                font-weight="600"
+                class="device-caption"
+              >
+                {device.code}
+              </text>
+            </g>
           {/if}
         </g>
       {/if}
     {/each}
+
+    <!-- Placement ghost preview -->
+    {#if placingDevice && ghost}
+      {@const ghostDevice = deviceById(placingDevice)}
+      <g
+        transform="translate({ghost.x}, {ghost.y})"
+        class="placement-ghost"
+        pointer-events="none"
+      >
+        <circle r="18" fill="rgba(56, 189, 248, 0.2)" stroke="#38bdf8" stroke-width="2" stroke-dasharray="4 3" />
+        <circle r="3" fill="#38bdf8" />
+        {#if ghostDevice}
+          <text y="-26" text-anchor="middle" fill="#38bdf8" font-size="12" font-weight="600">
+            {ghostDevice.name}
+          </text>
+        {/if}
+      </g>
+    {/if}
   </svg>
+
+  {#if appState.editMode}
+    <div class="coord-readout" aria-hidden="true">
+      {#if ghost}
+        {Math.round(ghost.x)}, {Math.round(ghost.y)}
+      {:else if appState.editSelectionId}
+        {@const p = appState.scene.devices.find((d) => d.deviceId === appState.editSelectionId)}
+        {#if p}
+          选中 {Math.round(p.x)}, {Math.round(p.y)}
+        {/if}
+      {:else}
+        {appState.scene.width}×{appState.scene.height}
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -348,6 +585,7 @@
     overflow: hidden;
     background: #658c5a;
     display: flex;
+    min-width: 0;
   }
 
   .factory-svg {
@@ -355,6 +593,7 @@
     height: 100%;
     cursor: default;
     user-select: none;
+    touch-action: none;
   }
 
   .factory-svg.edit-mode {
@@ -389,26 +628,81 @@
 
   .device-node {
     cursor: pointer;
-    transition: transform 0.12s ease;
   }
 
-  .device-node:hover {
-    filter: brightness(1.25);
+  .device-node.edit-mode {
+    cursor: grab;
   }
 
+  .device-node.edit-mode.dragging {
+    cursor: grabbing;
+  }
+
+  .device-node .hit-area {
+    cursor: inherit;
+  }
+
+  .device-node:hover .badge-style circle:first-child {
+    filter: brightness(1.2);
+  }
+
+  .device-node.hovered {
+    filter: brightness(1.15);
+  }
+
+  .device-node.selected .diagram-text,
   .device-node.selected text {
     fill: #ffffff !important;
-    text-shadow: 0 0 8px #38bdf8, 0 0 12px #38bdf8;
+    filter: drop-shadow(0 0 6px #38bdf8) drop-shadow(0 0 10px #38bdf8);
   }
 
   .device-node.dragging {
+    filter: brightness(1.3) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
     cursor: grabbing;
+  }
+
+  .select-ring {
+    fill: none;
+    stroke: #38bdf8;
+    stroke-width: 2;
+    stroke-dasharray: 5 3;
+    pointer-events: none;
+    animation: spin-dash 12s linear infinite;
+    transform-origin: center;
+    transform-box: fill-box;
+  }
+
+  @keyframes spin-dash {
+    to {
+      stroke-dashoffset: -80;
+    }
+  }
+
+  .device-caption {
+    pointer-events: none;
+    paint-order: stroke;
+    stroke: rgba(20, 40, 16, 0.75);
+    stroke-width: 3px;
+    font-family: 'Courier New', 'Consolas', monospace;
   }
 
   .diagram-text {
     font-family: 'Courier New', 'Consolas', 'SimSun', monospace;
     letter-spacing: 0.5px;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  }
+
+  .edit-grid line {
+    stroke: rgba(255, 255, 255, 0.08);
+    stroke-width: 1;
+  }
+
+  .placement-ghost text {
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    paint-order: stroke;
+    stroke: rgba(15, 23, 42, 0.8);
+    stroke-width: 3px;
+    pointer-events: none;
   }
 
   .edit-toolbar {
@@ -426,6 +720,7 @@
     border-radius: 8px;
     color: #fff;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    pointer-events: none;
   }
 
   .edit-label {
@@ -437,13 +732,7 @@
     border-radius: 4px;
   }
 
-  .device-placer {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .placer-label {
+  .edit-tip {
     font-size: 12px;
     color: #94a3b8;
   }
@@ -451,8 +740,20 @@
   .placing-hint {
     font-size: 12px;
     color: #f59e0b;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+  }
+
+  .coord-readout {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    z-index: 5;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: rgba(15, 23, 42, 0.75);
+    color: #94a3b8;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 </style>

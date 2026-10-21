@@ -109,14 +109,38 @@ nmcli con up "有线连接 1" ifname enaphyt36i2
 | 项 | 值 |
 |----|-----|
 | backend | `systemd` 单元 `735-backend.service`（enabled） |
-| 命令 | `/opt/735/bin/backend --listen 0.0.0.0:3000 --station STATION-01 --data-dir /opt/735/data --gamma-interval 30 --gamma 192.168.10.X:4000` ×20 |
+| 命令 | `/opt/735/bin/backend --listen 0.0.0.0:3000 --station STATION-01 --data-dir /opt/735/data --gamma-interval 30 --gamma-addr 1 --gamma 192.168.10.X:4000` ×20 |
 | 前端 | `python3 /opt/735/serve.py` → `:8080`（`735-frontend.service`） |
 | 联调脚本 | `python3 /opt/735/test_gamma_devices.py [IP…]` |
 | 有线地址 | `enaphyt36i2`：`192.168.10.2/24` + `192.168.10.10/24`（NetworkManager 已持久化） |
 
-**协议**：γ 剂量率仪为 **RMS-200 / RMS-2000 显示单元**协议（见 `RMS-200.txt`）。读剂量率 `1D 01 <addr> <check>`；设置报警限为 **`7C 04`**（参数个数=地址1+阈值3，非 02）。HS05G 仅用于氡，不是 gamma 协议。
+### γ 协议：RMS-200 / RMS-2000 显示单元
+
+γ 剂量率仪为 **RMS-200 / RMS-2000 显示单元**协议，源文件 `RMS-200.txt`。**HS05G 仅用于氡，不是 gamma 协议**。旧版 jczhan 谱仪协议（`#READ_SPECTRUM` / `0x9090` / `AA55…3CC3` CRC16）是错的，已从 backend 移除。
+
+帧格式：`CMD NARGS …参数… CHECK`；应答 `RESP …参数… CHECK`。`NARGS` = 其后参数字节数；`CHECK` = 前面所有字节累加和的低 8 位。
+
+| 功能 | 请求 | 应答 |
+|------|------|------|
+| 读实时剂量率 | `1D 01 <addr> <chk>` | `1E <dose×3> <update> <addr> <chk>` |
+| 写地址 | `78 02 <addr> FF <chk>` | `79 <addr> <chk>` |
+| 读地址 | `7A 01 FF <chk>` | `7B <addr> <chk>` |
+| 设报警限 | **`7C 04`** `<addr> <alarm×3> <chk>` | `7D <addr> <chk>` |
+| 读报警限 | `7E 01 <addr> <chk>` | `7F <addr> <alarm×3> <chk>` |
+
+- **设置报警限的参数个数是 `04`**（地址 1 + 阈值 3），不是 `02`。其余命令参数个数分别为 `1D 01` / `78 02` / `7A 01` / `7E 01`。
+- 3 字节科学计数值：`value = u16_be(b0,b1) / 1000.0 * 10^exp`。例：`22 EC 01` → 89.4；`03 E8 04` → 1.000e5。单位 nSv/h 或 nGy/h（报警限 nGy/h）。指数无符号 0–255，小于 0.001 无法表示。
+- 实现：`backend/src/gamma.rs` `RmsClient`（含单测）；轮询 `gamma_poller.rs` 只采集剂量率，指标码 `0102060301`（γ剂量率实时值，nGy/h）。CLI：`--gamma IP:4000` ×N、`--gamma-addr`（默认 `1`）、`--gamma-interval`、`--gamma-name`（默认 `γ剂量率监测仪`）。
 
 **测数结论（2026-10-20）**：20/20 台 TCP `:4000` 按 RMS-200 均可读到剂量率（约 250–1550 nGy/h，`addr=0x01`）。旧版误用 `#READ_SPECTRUM` / `0x9090` 导致无回传。报警限多为 `1.000e5` nGy/h（`.20` 为 `4.880e4`）。联调：`python3 /opt/735/test_gamma_devices.py`。
+
+### 部署注意事项
+
+- 交叉编译：`cd backend && cargo build --release --target aarch64-unknown-linux-musl`（linker `aarch64-linux-musl-gcc`，配置在 `backend/.cargo/config.toml`）。产物 `target/aarch64-unknown-linux-musl/release/backend` scp 到 `/opt/735/bin/backend`。
+- systemd 单元 `/etc/systemd/system/735-backend.service` 的 ExecStart 需含 `--gamma-addr 1`，**不要**再传 `--gamma-name γ能谱仪`（旧参数）。副本在 `/opt/735/735-backend.service`。
+- **不要用 `pkill` 重启 backend**：进程会以退出码 0 结束，`Restart=on-failure` 不会拉起。改用 `sudo systemctl restart 735-backend`。
+- 节点上 `sudo` 需要密码（用户 `yy` 在 sudo 组，无 NOPASSWD）。服务文件 root 所有。
+- 校验：`curl http://127.0.0.1:3000/api/v1/devices` 应见 20 台在线；`journalctl -u 735-backend` 有 `rms200:` / `dose_rate=` 行。
 
 ## 注意事项
 

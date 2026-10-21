@@ -122,6 +122,30 @@ Normal monitoring mode must not accidentally move devices.
 
 For Phase 1, changes may remain in frontend state or lightweight local mock persistence. No database is required.
 
+### Map editing implementation (2D)
+
+Edit mode is **2D-only**; switching to 3D auto-exits edit mode. State lives in `app-state.svelte.ts` (`AppState` class + exported mutators); components must not mutate placements directly.
+
+| Piece | Where | Notes |
+|-------|-------|-------|
+| `editMode` / `editSelectionId` / `placingDeviceId` | `appState` | selection for inspector vs. device drawer (`selectedDeviceId`) is separate |
+| `snapToGrid` / `gridSize` | `appState` | default on, 10px; `snapValue()` used on place/drag |
+| undo/redo | `undoPlacement` / `redoPlacement` | stack of **device placements only** (building geometry is mock-authored); max 50; drag = one step via `beginPlacementChange()` |
+| persistence | `localStorage` key `cabcal-factory-scene-v1` | always written on change; `saveScene()` also POSTs to backend, falls back to "已存本地" |
+| label style | `DevicePlacement.labelStyle` | `'badge' \| 'text' \| 'compact'`, default `'badge'` |
+| UI | `map/EditPanel.svelte` + `map/FactoryMap.svelte` | panel shows 未保存/已同步, place list, inspector (x/y, label style) |
+
+Keyboard (ignored while focus is in input/textarea/select):
+
+* `Esc` — cancel placing / clear edit selection
+* `Delete` / `Backspace` — remove selected placement
+* `Ctrl+Z` / `Ctrl+Shift+Z` or `Ctrl+Y` — undo / redo
+* Arrow keys — nudge by `gridSize` (Shift = 1px)
+
+Monitoring mode: devices are click-to-select only (opens drawer); drag/pan must not move placements. Middle-drag or Shift+drag pans the map in any mode.
+
+Do not add object/geometry editing in Phase 1 beyond what mock scene already provides — placements only.
+
 ## 3D
 
 Provide a simple Three.js view using the same map data as the 2D view.
