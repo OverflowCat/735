@@ -1,13 +1,13 @@
 :root {
-  --bg-primary: #0f1419;
-  --bg-secondary: #1a2028;
-  --bg-tertiary: #242d38;
-  --bg-card: #1e2630;
-  --border: #2d3a48;
-  --border-light: #3a4a5c;
-  --text-primary: #e8edf2;
-  --text-secondary: #8b98a8;
-  --text-muted: #5a6a7a;
+  --bg-primary: #0c1014;
+  --bg-secondary: #161c24;
+  --bg-tertiary: #243040;
+  --bg-card: #1a222c;
+  --border: #3d4d5e;
+  --border-light: #5a6a7c;
+  --text-primary: #f2f6fa;
+  --text-secondary: #b4c0cc;
+  --text-muted: #8a9aaa;
   --accent: #3b82f6;
   --accent-hover: #2563eb;
   --accent-bg: rgba(59, 130, 246, 0.12);
@@ -32,7 +32,7 @@
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
   --transition: 0.2s ease;
-  --nav-height: 52px;
+  --nav-height: 56px;
   --sidebar-width: 420px;
 }
 
@@ -45,7 +45,7 @@
 }
 
 html {
-  font-size: 15px;
+  font-size: 16px;
 }
 
 body {
@@ -86,9 +86,10 @@ button {
   border: 1px solid var(--border);
   background: var(--bg-tertiary);
   color: var(--text-primary);
-  padding: 6px 14px;
+  padding: 6px 12px;
   border-radius: var(--radius);
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 500;
   transition: all var(--transition);
 }
 button:hover {
@@ -112,20 +113,21 @@ button.danger {
   color: var(--danger);
 }
 button.small {
-  padding: 3px 8px;
-  font-size: 13px;
+  padding: 4px 8px;
+  font-size: 14px;
 }
 button.active {
   background: var(--accent-bg);
   border-color: var(--accent);
   color: var(--accent);
+  font-weight: 600;
 }
 
 /* Inputs */
 input, select {
   font-family: inherit;
-  font-size: 14px;
-  padding: 6px 10px;
+  font-size: 15px;
+  padding: 5px 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-primary);
@@ -144,8 +146,8 @@ input:focus, select:focus {
   gap: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   line-height: 1.4;
 }
 .badge.online {
@@ -176,17 +178,17 @@ table {
 }
 th, td {
   text-align: left;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border);
-  font-size: 14px;
+  font-size: 15px;
 }
 th {
-  color: var(--text-secondary);
-  font-weight: 500;
-  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 14px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  background: var(--bg-secondary);
+  letter-spacing: 0.04em;
+  background: var(--bg-tertiary);
   position: sticky;
   top: 0;
 }

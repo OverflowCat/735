@@ -5,6 +5,7 @@
     type HistoryQuery,
   } from '../../services/data-source';
   import type { HistoricalPoint, Device } from '../../types/device';
+  import { deviceSn } from '../../types/device';
   import ComparisonChart from '../charts/ComparisonChart.svelte';
   import TimeRangePicker from '../charts/TimeRangePicker.svelte';
 
@@ -20,8 +21,9 @@
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
       return (
-        d.name.toLowerCase().includes(q) ||
+        deviceSn(d).toLowerCase().includes(q) ||
         d.code.toLowerCase().includes(q) ||
+        d.name.toLowerCase().includes(q) ||
         d.type.includes(q)
       );
     }),
@@ -63,7 +65,7 @@
       selectedForCompare.map(async (id) => {
         const device = appState.devices.find((d) => d.id === id);
         const points = await getHistory(id, compareMetric, compareQuery);
-        return { deviceId: id, name: device?.name || id, points };
+        return { deviceId: id, name: deviceSn(device ?? { id, code: id }), points };
       }),
     );
     compareData = results;
@@ -123,101 +125,105 @@
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-header">
-      <h3>设备列表</h3>
-      <input
-        type="text"
-        placeholder="搜索设备名称、编号..."
-        bind:value={searchQuery}
-        class="search-input"
-      />
-    </div>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>设备名称</th>
-            <th>编号</th>
-            <th>类型</th>
-            <th>状态</th>
-            <th>最新数据</th>
-            <th>报警</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each filteredDevices as d}
+  <div class="split-row">
+    <div class="section list-section">
+      <div class="section-header">
+        <h3>设备列表</h3>
+        <input
+          type="text"
+          placeholder="搜索 SN、编号..."
+          bind:value={searchQuery}
+          class="search-input"
+        />
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
             <tr>
-              <td>{d.name}</td>
-              <td class="mono">{d.code}</td>
-              <td>{typeLabel(d.type)}</td>
-              <td>
-                <span class="badge {d.status}">{statusLabel(d.status)}</span>
-              </td>
-              <td>{metricValue(d)}</td>
-              <td>
-                {#if d.alarms.length > 0}
-                  {#each d.alarms as alarm}
-                    <span class="badge alarm-l{alarm.level}">
-                      {alarm.level === 2 ? '二级' : '一级'}
-                    </span>
-                  {/each}
-                {:else}
-                  <span class="no-alarm">无</span>
-                {/if}
-              </td>
+              <th>SN</th>
+              <th>类型</th>
+              <th>状态</th>
+              <th>最新数据</th>
+              <th>报警</th>
             </tr>
-          {/each}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {#each filteredDevices as d}
+              <tr>
+                <td class="mono sn">{deviceSn(d)}</td>
+                <td>{typeLabel(d.type)}</td>
+                <td>
+                  <span class="badge {d.status}">{statusLabel(d.status)}</span>
+                </td>
+                <td>{metricValue(d)}</td>
+                <td>
+                  {#if d.alarms.length > 0}
+                    {#each d.alarms as alarm}
+                      <span class="badge alarm-l{alarm.level}">
+                        {alarm.level === 2 ? '二级' : '一级'}
+                      </span>
+                    {/each}
+                  {:else}
+                    <span class="no-alarm">无</span>
+                  {/if}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
     </div>
-  </div>
 
-  <div class="section">
-    <div class="section-header">
-      <h3>设备对比</h3>
-    </div>
-    <div class="compare-controls">
-      <div class="control-group">
-        <label for="compare-metric">指标</label>
-        <select id="compare-metric" bind:value={compareMetric}>
-          {#each metricOptions as opt}
-            <option value={opt.value}>{opt.label}</option>
-          {/each}
-        </select>
+    <div class="section compare-section">
+      <div class="section-header">
+        <h3>设备对比</h3>
+        <span class="compare-count">{selectedForCompare.length}/6</span>
       </div>
-      <!-- svelte-ignore a11y_label_has_associated_control -->
-      <div class="control-group">
-        <label>时间范围</label>
-        <TimeRangePicker query={compareQuery} onchange={onRangeChange} />
-      </div>
-      <!-- svelte-ignore a11y_label_has_associated_control -->
-      <div class="control-group">
-        <label>选择设备（最多6台）</label>
-        <div class="device-selector">
-          {#each compatibleDevices as d}
-            <button
-              class:active={selectedForCompare.includes(d.id)}
-              class="small"
-              onclick={() => toggleCompareDevice(d.id)}
-            >
-              {d.name}
-            </button>
-          {/each}
+      <div class="compare-controls">
+        <div class="control-row">
+          <div class="control-group">
+            <label for="compare-metric">指标</label>
+            <select id="compare-metric" bind:value={compareMetric}>
+              {#each metricOptions as opt}
+                <option value={opt.value}>{opt.label}</option>
+              {/each}
+            </select>
+          </div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <div class="control-group">
+            <label>时间范围</label>
+            <TimeRangePicker query={compareQuery} onchange={onRangeChange} />
+          </div>
+        </div>
+        <!-- svelte-ignore a11y_label_has_associated_control -->
+        <div class="control-group">
+          <label>选择设备（最多6台）</label>
+          <div class="device-selector">
+            {#each compatibleDevices as d}
+              <button
+                class:active={selectedForCompare.includes(d.id)}
+                class="small sn-btn"
+                title={d.name}
+                onclick={() => toggleCompareDevice(d.id)}
+              >
+                {deviceSn(d)}
+              </button>
+            {/each}
+          </div>
         </div>
       </div>
-    </div>
-    <div class="chart-area">
-      {#if compareLoading}
-        <div class="loading">加载中...</div>
-      {:else if compareData.length === 0}
-        <div class="loading">请选择设备进行对比</div>
-      {:else}
-        <ComparisonChart
-          series={compareData}
-          unit={currentMetricOption?.unit || ''}
-        />
-      {/if}
+      <div class="chart-area">
+        {#if compareLoading}
+          <div class="loading">加载中...</div>
+        {:else if compareData.length === 0}
+          <div class="loading">请选择设备进行对比</div>
+        {:else}
+          <ComparisonChart
+            series={compareData}
+            unit={currentMetricOption?.unit || ''}
+          />
+        {/if}
+      </div>
     </div>
   </div>
 </div>
@@ -226,25 +232,26 @@
   .overview {
     flex: 1;
     overflow-y: auto;
-    padding: 20px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 12px;
+    min-width: 0;
   }
 
   .summary-row {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     flex-wrap: wrap;
   }
 
   .summary-card {
     flex: 1;
-    min-width: 120px;
+    min-width: 110px;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 16px;
+    padding: 10px 12px;
     text-align: center;
   }
 
@@ -254,16 +261,26 @@
   .summary-card.alarm { border-left: 4px solid var(--alarm-l2); }
 
   .summary-value {
-    font-size: 34px;
+    font-size: 32px;
     font-weight: 700;
     font-family: var(--font-mono);
-    line-height: 1.2;
+    line-height: 1.15;
+    color: var(--text-primary);
   }
 
   .summary-label {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-secondary);
-    margin-top: 4px;
+    margin-top: 2px;
+    font-weight: 500;
+  }
+
+  .split-row {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+    min-width: 0;
+    flex: 1;
   }
 
   .section {
@@ -271,75 +288,136 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .list-section {
+    flex: 1.05;
+    max-height: calc(100vh - 220px);
+  }
+
+  .compare-section {
+    flex: 1;
   }
 
   .section-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--border);
+    gap: 8px;
+    flex-shrink: 0;
   }
 
   .section-header h3 {
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 17px;
+    font-weight: 700;
     margin: 0;
+    color: var(--text-primary);
+  }
+
+  .compare-count {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-bg);
+    padding: 2px 10px;
+    border-radius: 999px;
   }
 
   .search-input {
-    width: 240px;
+    width: 200px;
+    font-size: 15px;
+    padding: 5px 10px;
   }
 
   .table-wrapper {
-    max-height: 300px;
+    flex: 1;
     overflow-y: auto;
+    min-height: 200px;
   }
 
-  .mono {
+  .sn {
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
   }
 
   .no-alarm {
-    color: var(--text-muted);
-    font-size: 13px;
+    color: var(--text-secondary);
+    font-size: 14px;
   }
 
   .compare-controls {
-    padding: 12px 16px;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .control-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 16px;
-    border-bottom: 1px solid var(--border);
+    gap: 12px;
   }
 
   .control-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
+    min-width: 0;
   }
 
   .control-group label {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-secondary);
+    font-weight: 500;
   }
 
-  .range-buttons, .device-selector {
+  .device-selector {
     display: flex;
-    gap: 4px;
+    gap: 6px;
     flex-wrap: wrap;
   }
 
+  .sn-btn {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 5px 10px;
+    letter-spacing: 0.01em;
+  }
+
   .chart-area {
-    height: 350px;
-    padding: 12px;
+    flex: 1;
+    min-height: 320px;
+    padding: 8px;
   }
 
   .loading {
     text-align: center;
-    padding: 40px;
-    color: var(--text-muted);
-    font-size: 14px;
+    padding: 32px;
+    color: var(--text-secondary);
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  @media (max-width: 1100px) {
+    .split-row {
+      flex-direction: column;
+    }
+    .list-section {
+      max-height: 340px;
+    }
+    .chart-area {
+      min-height: 280px;
+    }
   }
 </style>

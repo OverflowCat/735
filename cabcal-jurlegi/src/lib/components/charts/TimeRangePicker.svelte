@@ -104,7 +104,7 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-secondary);
   }
 
@@ -113,14 +113,14 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: 14px;
     padding: 4px 6px;
     font-family: var(--font-mono);
   }
 
   button.small {
     padding: 4px 10px;
-    font-size: 13px;
+    font-size: 14px;
     border-radius: var(--radius);
     border: 1px solid var(--border);
     background: var(--bg-card);

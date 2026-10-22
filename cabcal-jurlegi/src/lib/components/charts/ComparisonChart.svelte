@@ -37,39 +37,41 @@
     const showDate = spanMs > 2 * 24 * 60 * 60 * 1000;
     const pad = (n: number) => String(n).padStart(2, '0');
     return {
-      grid: { top: 40, right: 20, bottom: 30, left: 55 },
+      grid: { top: 42, right: 16, bottom: 28, left: 56 },
       legend: {
         data: series.map((s) => s.name),
-        textStyle: { color: '#8b98a8', fontSize: 12 },
-        top: 5,
+        textStyle: { color: '#c4ced8', fontSize: 14, fontWeight: 600 },
+        top: 4,
+        itemWidth: 18,
+        itemHeight: 10,
       },
       xAxis: {
         type: 'time',
         axisLabel: {
-          color: '#8b98a8',
-          fontSize: 11,
+          color: '#b8c4d0',
+          fontSize: 13,
           formatter: (v: number) => {
             const d = new Date(v);
             const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
             return showDate ? `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${hm}` : hm;
           },
         },
-        axisLine: { lineStyle: { color: '#2d3a48' } },
+        axisLine: { lineStyle: { color: '#4a5a6c' } },
         splitLine: { show: false },
       },
       yAxis: {
         type: 'value',
         name: unit,
-        nameTextStyle: { color: '#8b98a8', fontSize: 11 },
-        axisLabel: { color: '#8b98a8', fontSize: 11 },
-        axisLine: { lineStyle: { color: '#2d3a48' } },
-        splitLine: { lineStyle: { color: '#1e2630' } },
+        nameTextStyle: { color: '#b8c4d0', fontSize: 13 },
+        axisLabel: { color: '#b8c4d0', fontSize: 13 },
+        axisLine: { lineStyle: { color: '#4a5a6c' } },
+        splitLine: { lineStyle: { color: '#2d3a48' } },
       },
       tooltip: {
         trigger: 'axis',
         backgroundColor: '#1a2028',
-        borderColor: '#2d3a48',
-        textStyle: { color: '#e8edf2', fontSize: 13 },
+        borderColor: '#4a5a6c',
+        textStyle: { color: '#f0f4f8', fontSize: 14 },
       },
       series: series.map((s, i) => ({
         name: s.name,
