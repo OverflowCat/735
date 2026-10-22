@@ -14,6 +14,7 @@
     cancelPlacing,
   } from '../../state/app-state.svelte';
   import type { Device } from '../../types/device';
+  import { deviceSn } from '../../types/device';
 
   let svgEl = $state<SVGSVGElement | null>(null);
 
@@ -46,16 +47,32 @@
   }
 
   function alarmColor(device: Device): string {
-    if (device.alarms.length === 0) return '';
-    const maxLevel = Math.max(...device.alarms.map((a) => a.level));
+    const alarms = device.alarms ?? [];
+    if (alarms.length === 0) return '';
+    const maxLevel = Math.max(...alarms.map((a) => a.level));
     return maxLevel === 2 ? '#ef4444' : '#f59e0b';
   }
 
+  function formatMetricValue(v: number): string {
+    if (!Number.isFinite(v)) return '—';
+    const abs = Math.abs(v);
+    if (abs >= 10000) return v.toExponential(2);
+    return v.toFixed(1);
+  }
+
+  /** Numeric readout only — units stay off the map (labels get too wide). */
   function deviceValueText(device: Device): string {
-    const metric = device.metrics[0];
-    if (!metric) return device.name;
+    const metric = device.metrics?.[0];
+    if (!metric) return '—';
+    return formatMetricValue(metric.value);
+  }
+
+  /** Longer engineering-style label (text mode). */
+  function deviceFullLabel(device: Device): string {
+    const metric = device.metrics?.[0];
     const typeLabel = device.type === 'gamma' ? 'γ' : 'Rn';
-    return `${device.code}: ${metric.value}${metric.unit}, ${typeLabel}`;
+    if (!metric) return `${deviceSn(device)}, ${typeLabel}`;
+    return `${deviceSn(device)} ${formatMetricValue(metric.value)}, ${typeLabel}`;
   }
 
   function pointsToString(pts?: [number, number][]): string {
@@ -284,7 +301,7 @@
       <span class="edit-label">编辑模式</span>
       {#if placingDevice}
         <span class="placing-hint">
-          点击地图放置「{deviceById(placingDevice)?.name}」· Esc 取消
+          点击地图放置「{deviceById(placingDevice) ? deviceSn(deviceById(placingDevice)!) : placingDevice}」· Esc 取消
         </span>
       {:else}
         <span class="edit-tip">拖动设备调位置 · 右键移除 · 点击选中编辑</span>
@@ -475,7 +492,6 @@
           {#if placement.labelStyle === 'text'}
             <!-- 原图同款黄色工程技术字体，自然融入草坪 -->
             <g class="text-label-style">
-              <!-- 文本读数显示（与图片 1-1: 0.1uSv/h, γ 完全一致） -->
               <text
                 x="0"
                 y="0"
@@ -484,18 +500,21 @@
                 font-weight="bold"
                 class="diagram-text"
               >
-                {deviceValueText(device)}
+                {deviceFullLabel(device)}
               </text>
             </g>
           {:else if placement.labelStyle === 'compact'}
-            <!-- 紧凑指示标（原 badge 行为） -->
-            <g class="badge-style" opacity="0.85">
+            <!-- 紧凑指示标 + 实时测量值 -->
+            <g class="badge-style" opacity="0.92">
               <circle
                 r="12"
                 fill="rgba(24, 38, 22, 0.85)"
                 stroke={statusColor(device.status)}
                 stroke-width="2"
               />
+              {#if alarmColor(device)}
+                <circle r="12" fill="none" stroke={alarmColor(device)} stroke-width="1.5" stroke-dasharray="3 2" />
+              {/if}
               <text
                 text-anchor="middle"
                 dominant-baseline="central"
@@ -505,9 +524,19 @@
               >
                 {device.type === 'gamma' ? 'γ' : 'Rn'}
               </text>
+              <text
+                y="26"
+                text-anchor="middle"
+                fill="#f3ffd0"
+                font-size="13"
+                font-weight="700"
+                class="device-value device-caption"
+              >
+                {deviceValueText(device)}
+              </text>
             </g>
           {:else}
-            <!-- badge / default: marker + short code -->
+            <!-- badge / default: marker + code + measurement -->
             <g class="badge-style">
               <circle
                 r="13"
@@ -537,6 +566,16 @@
               >
                 {device.code}
               </text>
+              <text
+                y="44"
+                text-anchor="middle"
+                fill="#f3ffd0"
+                font-size="13"
+                font-weight="700"
+                class="device-value device-caption"
+              >
+                {deviceValueText(device)}
+              </text>
             </g>
           {/if}
         </g>
@@ -555,7 +594,7 @@
         <circle r="3" fill="#38bdf8" />
         {#if ghostDevice}
           <text y="-26" text-anchor="middle" fill="#38bdf8" font-size="13" font-weight="600">
-            {ghostDevice.name}
+            {deviceSn(ghostDevice)}
           </text>
         {/if}
       </g>
@@ -684,6 +723,10 @@
     stroke: rgba(20, 40, 16, 0.75);
     stroke-width: 3px;
     font-family: 'Courier New', 'Consolas', monospace;
+  }
+
+  .device-value {
+    letter-spacing: 0.2px;
   }
 
   .diagram-text {
