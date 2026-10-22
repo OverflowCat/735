@@ -6,6 +6,7 @@
   } from '../../services/data-source';
   import type { Device } from '../../types/device';
   import type { HistoricalPoint } from '../../types/device';
+  import { deviceSn } from '../../types/device';
   import TrendChart from '../charts/TrendChart.svelte';
   import TimeRangePicker from '../charts/TimeRangePicker.svelte';
 
@@ -55,7 +56,10 @@
 {#if device}
   <aside class="drawer">
     <div class="drawer-header">
-      <h3>{device.name}</h3>
+      <h3>
+        <span class="title-sn">{deviceSn(device)}</span>
+        <span class="title-name">{device.name}</span>
+      </h3>
       <button class="close-btn" onclick={close}>✕</button>
     </div>
 
@@ -157,15 +161,32 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: 10px 14px;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
   }
 
   .drawer-header h3 {
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 18px;
+    font-weight: 700;
     margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .title-sn {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .title-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
   }
 
   .close-btn {
@@ -201,17 +222,18 @@
   }
 
   .info-label {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-secondary);
   }
 
   .info-value {
-    font-size: 14px;
+    font-size: 15px;
+    font-weight: 500;
   }
 
   .info-value.mono {
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .section {

@@ -15,6 +15,7 @@
     cancelPlacing,
   } from '../../state/app-state.svelte';
   import type { Device } from '../../types/device';
+  import { deviceSn } from '../../types/device';
   import type { DevicePlacement } from '../../types/scene';
 
   let saveState = $state<'idle' | 'saving' | 'saved' | 'local'>('idle');
@@ -112,7 +113,7 @@
     {#if appState.placingDeviceId}
       <div class="placing-hint">
         <span>
-          正在放置「{deviceById(appState.placingDeviceId)?.name ?? appState.placingDeviceId}」— 点击地图确定位置
+          正在放置「{deviceSn(deviceById(appState.placingDeviceId) ?? { id: appState.placingDeviceId, code: appState.placingDeviceId })}」— 点击地图确定位置
         </span>
         <button class="small" onclick={() => cancelPlacing()}>取消 (Esc)</button>
       </div>
@@ -121,7 +122,7 @@
         {#each unplacedDevices as d (d.id)}
           <button class="device-chip" onclick={() => startPlacing(d.id)}>
             <span class="chip-type">{d.type === 'gamma' ? 'γ' : 'Rn'}</span>
-            <span class="chip-name">{d.name}</span>
+            <span class="chip-name">{deviceSn(d)}</span>
           </button>
         {/each}
       </div>
@@ -139,8 +140,8 @@
         <div class="inspector-title">
           <span class="chip-type">{d.type === 'gamma' ? 'γ' : 'Rn'}</span>
           <div>
-            <div class="name">{d.name}</div>
-            <div class="code">{d.code}</div>
+            <div class="name">{deviceSn(d)}</div>
+            <div class="code">{d.name}</div>
           </div>
         </div>
 

@@ -24,3 +24,8 @@ export interface DeviceHistory {
   metric: string;
   points: HistoricalPoint[];
 }
+
+/** Short unique label (asset SN). Field inventory uses SN as `id`; names may be identical. */
+export function deviceSn(d: Pick<Device, 'id' | 'code'>): string {
+  return d.id || d.code;
+}
