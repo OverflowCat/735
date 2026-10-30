@@ -121,6 +121,23 @@ export const mockScene: FactoryScene = {
     },
   ],
   devices: [
+    // ── C19 采区（2026-10-26 新接入）──
+    { deviceId: '2026012904', x: 80, y: 55, labelStyle: 'compact' },
+    { deviceId: 'radon-35', x: 102, y: 78, labelStyle: 'compact' },
+    { deviceId: '2026012928', x: 190, y: 55, labelStyle: 'compact' },
+    // ── C35 采区（2026-10-26 新接入）──
+    { deviceId: '2026012914', x: 95, y: 255, labelStyle: 'compact' },
+    { deviceId: '2026012903', x: 200, y: 255, labelStyle: 'compact' },
+    { deviceId: 'radon-36', x: 222, y: 278, labelStyle: 'compact' },
+    { deviceId: '2026012923', x: 305, y: 275, labelStyle: 'compact' },
+    // ── 集中过滤厂房（2026-10-26 新接入）──
+    { deviceId: '2026012918', x: 785, y: 55, labelStyle: 'compact' },
+    { deviceId: '2026012924', x: 885, y: 55, labelStyle: 'compact' },
+    { deviceId: '2026012929', x: 985, y: 55, labelStyle: 'compact' },
+    // ── C3 采区（清单已录入，设备尚未上线）──
+    { deviceId: '2026012905', x: 155, y: 520, labelStyle: 'compact' },
+    { deviceId: 'radon-37', x: 177, y: 543, labelStyle: 'compact' },
+    { deviceId: '2026012917', x: 210, y: 575, labelStyle: 'compact' },
     // ── 水冶厂：当前接入的 20 台 γ（5×4 均匀网格）+ 伴生氡 ──
     // row 0 (y=420)
     { deviceId: 'gamma_01', x: 525, y: 420, labelStyle: 'compact' },
