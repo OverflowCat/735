@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import {
     appState,
+    switchMap,
     selectDevice,
     moveDevice,
     addDevicePlacement,
@@ -14,7 +16,7 @@
     cancelPlacing,
   } from '../../state/app-state.svelte';
   import type { Device } from '../../types/device';
-  import { deviceSn } from '../../types/device';
+  import { deviceSn, deviceStatusLabel } from '../../types/device';
 
   let svgEl = $state<SVGSVGElement | null>(null);
 
@@ -24,7 +26,27 @@
   let dragUndoPushed = false;
   let dragOffset = $state({ x: 0, y: 0 });
   let dragStartScreen = $state({ x: 0, y: 0 });
-  let viewBox = $state({ x: 0, y: 0, w: 1200, h: 800 });
+  const initialSize = untrack(() => ({
+    w: appState.scene.width,
+    h: appState.scene.height,
+  }));
+  let viewBox = $state({ x: 0, y: 0, ...initialSize });
+  const isFloorplan = $derived(!!appState.scene.backgroundImage);
+  let imageFailed = $state(false);
+
+  function resetView() {
+    viewBox = { x: 0, y: 0, w: appState.scene.width, h: appState.scene.height };
+  }
+  function shortLabel(device: Device) {
+    return device.type === 'gamma'
+      ? `γ${deviceSn(device).slice(-2)}`
+      : `Rn ${device.id.replace('radon-', '')}`;
+  }
+  function regionSummary(mapId: string): string {
+    return mapId.startsWith('hydromet')
+      ? '一至四楼 · 点击查看'
+      : '点击查看平面图';
+  }
   let isPanning = $state(false);
   let panStart = $state({ x: 0, y: 0 });
   let ghost = $state<{ x: number; y: number } | null>(null);
@@ -60,11 +82,11 @@
     return v.toFixed(1);
   }
 
-  /** Numeric readout only — units stay off the map (labels get too wide). */
+  /** Engineering readout with the metric's own unit. */
   function deviceValueText(device: Device): string {
     const metric = device.metrics?.[0];
     if (!metric) return '—';
-    return formatMetricValue(metric.value);
+    return `${formatMetricValue(metric.value)} ${metric.unit}`;
   }
 
   /** Longer engineering-style label (text mode). */
@@ -80,15 +102,17 @@
     return pts.map(([x, y]) => `${x},${y}`).join(' ');
   }
 
-  function svgPoint(e: MouseEvent | PointerEvent | WheelEvent): { x: number; y: number } {
+  function svgPoint(e: MouseEvent | PointerEvent | WheelEvent): {
+    x: number;
+    y: number;
+  } {
     if (!svgEl) return { x: 0, y: 0 };
-    const rect = svgEl.getBoundingClientRect();
-    const scaleX = viewBox.w / rect.width;
-    const scaleY = viewBox.h / rect.height;
-    return {
-      x: (e.clientX - rect.left) * scaleX + viewBox.x,
-      y: (e.clientY - rect.top) * scaleY + viewBox.y,
-    };
+    const matrix = svgEl.getScreenCTM();
+    if (!matrix) return { x: 0, y: 0 };
+    const point = new DOMPoint(e.clientX, e.clientY).matrixTransform(
+      matrix.inverse(),
+    );
+    return { x: point.x, y: point.y };
   }
 
   function clampToScene(x: number, y: number): { x: number; y: number } {
@@ -101,7 +125,7 @@
   }
 
   function handlePointerDown(e: PointerEvent) {
-    if (e.button === 1 || (e.button === 0 && e.shiftKey && !placingDevice && !appState.editMode)) {
+    if (e.button === 1 || (e.button === 0 && e.shiftKey && !placingDevice)) {
       // Middle mouse or Shift+drag pans in monitoring mode.
       startPan(e);
       return;
@@ -117,7 +141,9 @@
       return;
     }
 
-    const target = (e.target as SVGElement).closest('[data-device]') as SVGElement | null;
+    const target = (e.target as SVGElement).closest(
+      '[data-device]',
+    ) as SVGElement | null;
 
     if (target) {
       const id = target.dataset.device!;
@@ -131,7 +157,6 @@
           dragOffset = { x: pt.x - placement.x, y: pt.y - placement.y };
         }
         setEditSelection(id);
-        selectDevice(id);
         pointerId = e.pointerId;
         svgEl?.setPointerCapture(e.pointerId);
         e.preventDefault();
@@ -140,6 +165,8 @@
       }
       return;
     }
+
+    if ((e.target as SVGElement).closest('[data-map]')) return;
 
     // Empty space
     if (appState.editMode) {
@@ -173,24 +200,29 @@
         dragUndoPushed = true;
       }
       dragMoved = true;
-      const snapped = clampToScene(snapValue(pt.x - dragOffset.x), snapValue(pt.y - dragOffset.y));
+      const snapped = clampToScene(
+        snapValue(pt.x - dragOffset.x),
+        snapValue(pt.y - dragOffset.y),
+      );
       moveDevice(draggingId, snapped.x, snapped.y);
       return;
     }
 
     if (isPanning) {
-      const rect = svgEl?.getBoundingClientRect();
-      if (!rect) return;
-      const scaleX = viewBox.w / rect.width;
-      const scaleY = viewBox.h / rect.height;
-      viewBox.x -= (e.clientX - panStart.x) * scaleX;
-      viewBox.y -= (e.clientY - panStart.y) * scaleY;
+      const previous = svgPoint({
+        clientX: panStart.x,
+        clientY: panStart.y,
+      } as MouseEvent);
+      viewBox.x -= pt.x - previous.x;
+      viewBox.y -= pt.y - previous.y;
       panStart = { x: e.clientX, y: e.clientY };
       return;
     }
 
     // Hover highlight for edit affordance
-    const target = (e.target as SVGElement).closest?.('[data-device]') as SVGElement | null;
+    const target = (e.target as SVGElement).closest?.(
+      '[data-device]',
+    ) as SVGElement | null;
     hoverDeviceId = target?.dataset.device ?? null;
   }
 
@@ -222,6 +254,11 @@
     e.preventDefault();
     const factor = e.deltaY > 0 ? 1.08 : 0.92;
     const pt = svgPoint(e);
+    if (
+      viewBox.w * factor < initialSize.w / 8 ||
+      viewBox.w * factor > initialSize.w * 4
+    )
+      return;
     viewBox.x = pt.x - (pt.x - viewBox.x) * factor;
     viewBox.y = pt.y - (pt.y - viewBox.y) * factor;
     viewBox.w *= factor;
@@ -230,7 +267,9 @@
 
   function handleContextMenu(e: MouseEvent) {
     if (!appState.editMode) return;
-    const target = (e.target as SVGElement).closest('[data-device]') as SVGElement | null;
+    const target = (e.target as SVGElement).closest(
+      '[data-device]',
+    ) as SVGElement | null;
     if (!target) return;
     e.preventDefault();
     const id = target.dataset.device!;
@@ -257,7 +296,10 @@
 
     if (!appState.editMode) return;
 
-    if ((e.key === 'Delete' || e.key === 'Backspace') && appState.editSelectionId) {
+    if (
+      (e.key === 'Delete' || e.key === 'Backspace') &&
+      appState.editSelectionId
+    ) {
       removeDevicePlacement(appState.editSelectionId);
       e.preventDefault();
       return;
@@ -268,7 +310,10 @@
       e.preventDefault();
       return;
     }
-    if ((e.key === 'z' && (e.ctrlKey || e.metaKey) && e.shiftKey) || (e.key === 'y' && (e.ctrlKey || e.metaKey))) {
+    if (
+      (e.key === 'z' && (e.ctrlKey || e.metaKey) && e.shiftKey) ||
+      (e.key === 'y' && (e.ctrlKey || e.metaKey))
+    ) {
       redoPlacement();
       e.preventDefault();
       return;
@@ -295,13 +340,25 @@
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div class="map-container" class:edit-mode={appState.editMode}>
+<div
+  class="map-container"
+  class:floorplan={isFloorplan}
+  class:edit-mode={appState.editMode}
+>
+  <button class="fit-view" onclick={resetView} title="显示完整平面图"
+    >适应画面</button
+  >
+  {#if imageFailed}<div class="image-error" role="alert">
+      平面图加载失败，请刷新重试
+    </div>{/if}
   {#if appState.editMode}
     <div class="edit-toolbar">
       <span class="edit-label">编辑模式</span>
       {#if placingDevice}
         <span class="placing-hint">
-          点击地图放置「{deviceById(placingDevice) ? deviceSn(deviceById(placingDevice)!) : placingDevice}」· Esc 取消
+          点击地图放置「{deviceById(placingDevice)
+            ? deviceSn(deviceById(placingDevice)!)
+            : placingDevice}」· Esc 取消
         </span>
       {:else}
         <span class="edit-tip">拖动设备调位置 · 右键移除 · 点击选中编辑</span>
@@ -330,18 +387,36 @@
     <defs>
       <!-- 柔和立体阴影 -->
       <filter id="building-shadow" x="-10%" y="-10%" width="125%" height="130%">
-        <feDropShadow dx="3" dy="6" stdDeviation="4" flood-color="#1e3318" flood-opacity="0.4" />
+        <feDropShadow
+          dx="3"
+          dy="6"
+          stdDeviation="4"
+          flood-color="#1e3318"
+          flood-opacity="0.4"
+        />
       </filter>
 
       <!-- 1. C19 黄色金弧立体立面渐变 -->
-      <linearGradient id="c19-facade-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <linearGradient
+        id="c19-facade-gradient"
+        x1="0%"
+        y1="0%"
+        x2="0%"
+        y2="100%"
+      >
         <stop offset="0%" stop-color="#DCD640" />
         <stop offset="45%" stop-color="#BEB928" />
         <stop offset="100%" stop-color="#8E891C" />
       </linearGradient>
 
       <!-- 2. C35 银灰色立体立面渐变 -->
-      <linearGradient id="c35-facade-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <linearGradient
+        id="c35-facade-gradient"
+        x1="0%"
+        y1="0%"
+        x2="0%"
+        y2="100%"
+      >
         <stop offset="0%" stop-color="#9AA0A8" />
         <stop offset="60%" stop-color="#7B8087" />
         <stop offset="100%" stop-color="#5E636A" />
@@ -354,14 +429,26 @@
       </linearGradient>
 
       <!-- 4. 集中过滤厂房 青湖蓝立面渐变 -->
-      <linearGradient id="filter-facade-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <linearGradient
+        id="filter-facade-gradient"
+        x1="0%"
+        y1="0%"
+        x2="0%"
+        y2="100%"
+      >
         <stop offset="0%" stop-color="#46A7B8" />
         <stop offset="50%" stop-color="#3494A5" />
         <stop offset="100%" stop-color="#216D7C" />
       </linearGradient>
 
       <!-- 5. 水冶厂 银冷青灰立面渐变 -->
-      <linearGradient id="hydromet-facade-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <linearGradient
+        id="hydromet-facade-gradient"
+        x1="0%"
+        y1="0%"
+        x2="0%"
+        y2="100%"
+      >
         <stop offset="0%" stop-color="#A4B3A4" />
         <stop offset="60%" stop-color="#8A998A" />
         <stop offset="100%" stop-color="#6F7D6F" />
@@ -389,20 +476,48 @@
       </g>
     {/if}
 
-    <!-- 原图外框装饰暗线 -->
+    {#if appState.scene.backgroundImage}
+      {@const bg = appState.scene.backgroundImage}
+      <image
+        href={bg.src}
+        x={bg.x}
+        y={bg.y}
+        width={bg.width}
+        height={bg.height}
+        preserveAspectRatio="none"
+        onerror={() => (imageFailed = true)}
+        pointer-events="none"
+      />
+    {/if}
+
+    <!-- Original site boundary -->
     <rect
       x="2"
       y="2"
       width={(appState.scene.width || 1200) - 4}
       height={(appState.scene.height || 800) - 4}
       fill="none"
-      stroke="#5A8050"
+      stroke={isFloorplan ? '#cbd5e1' : '#5A8050'}
       stroke-width="3"
     />
 
     <!-- 厂房建筑物渲染（2.5D 立体顶面与下部斜面厚度） -->
     {#each appState.scene.objects as obj (obj.id)}
-      <g class="building-group" filter="url(#building-shadow)">
+      <g
+        class="building-group"
+        filter="url(#building-shadow)"
+        data-map={obj.targetMapId}
+        role="button"
+        tabindex="0"
+        aria-label={`查看${obj.label}平面图`}
+        onclick={() => obj.targetMapId && switchMap(obj.targetMapId)}
+        onkeydown={(e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && obj.targetMapId) {
+            e.preventDefault();
+            switchMap(obj.targetMapId);
+          }
+        }}
+      >
         {#if obj.shape === 'polygon' && obj.points}
           <!-- 多边形立面（正面银灰立体斜坡） -->
           {#if obj.frontPoints}
@@ -451,8 +566,10 @@
 
         <!-- 厂房标牌字体（汉字宋体/仿宋，英文Times/衬线，完全还原原图风格） -->
         <text
-          x={obj.labelX ?? (obj.x !== undefined && obj.width ? obj.x + obj.width / 2 : 0)}
-          y={obj.labelY ?? (obj.y !== undefined && obj.height ? obj.y + obj.height / 2 : 0)}
+          x={obj.labelX ??
+            (obj.x !== undefined && obj.width ? obj.x + obj.width / 2 : 0)}
+          y={obj.labelY ??
+            (obj.y !== undefined && obj.height ? obj.y + obj.height / 2 : 0)}
           text-anchor="middle"
           dominant-baseline="central"
           fill={obj.labelColor || '#ffffff'}
@@ -464,17 +581,38 @@
         >
           {obj.label}
         </text>
+        {#if obj.targetMapId}
+          <text
+            x={obj.labelX}
+            y={(obj.labelY ?? 0) + 32}
+            text-anchor="middle"
+            fill="#fff"
+            font-size="12"
+            class="building-title">{regionSummary(obj.targetMapId)}</text
+          >
+        {/if}
       </g>
     {/each}
 
     <!-- 现场监测设备点位与数据标注 -->
-    {#each appState.scene.devices as placement (placement.deviceId)}
+    {#each appState.activeMapId === 'site' ? [] : appState.scene.devices as placement (placement.deviceId)}
       {@const device = deviceById(placement.deviceId)}
       {#if device}
-        {@const isSel = appState.editSelectionId === device.id || appState.selectedDeviceId === device.id}
+        {@const isSel =
+          appState.editSelectionId === device.id ||
+          appState.selectedDeviceId === device.id}
         {@const isHover = hoverDeviceId === device.id}
         <g
           data-device={device.id}
+          role="button"
+          tabindex="0"
+          aria-label={`${deviceSn(device)} ${deviceStatusLabel(device)} ${deviceValueText(device)}`}
+          onkeydown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              selectDevice(device.id);
+            }
+          }}
           transform="translate({placement.x}, {placement.y})"
           class="device-node"
           class:selected={isSel}
@@ -489,7 +627,58 @@
             <circle class="select-ring" r="20" />
           {/if}
 
-          {#if placement.labelStyle === 'text'}
+          {#if isFloorplan}
+            {@const dx = placement.labelDx ?? 22}
+            {@const dy = placement.labelDy ?? -22}
+            {@const alarm = alarmColor(device)}
+            <line
+              x1="0"
+              y1="0"
+              x2={dx > 0 ? dx : dx + 140}
+              y2={dy + 24}
+              stroke="#64748b"
+              stroke-width="1"
+            />
+            <circle
+              r="5"
+              fill={alarm || statusColor(device.status)}
+              stroke="white"
+              stroke-width="2"
+            />
+            <g transform="translate({dx}, {dy})" class="floor-label">
+              <rect
+                width="140"
+                height={placement.labelStyle === 'compact' ? 27 : 48}
+                rx="5"
+                fill={isSel ? '#e0f2fe' : '#ffffff'}
+                stroke={isSel ? '#0284c7' : alarm || '#94a3b8'}
+                stroke-width={alarm || isSel ? 2 : 1}
+              />
+              <text x="9" y="17" font-size="13" font-weight="700" fill="#0f172a"
+                >{shortLabel(device)}</text
+              >
+              <text
+                x="132"
+                y="17"
+                text-anchor="end"
+                font-size="10"
+                fill={alarm || '#475569'}
+              >
+                {alarm
+                  ? device.alarms.some((a) => a.level === 2)
+                    ? '二级报警'
+                    : '一级报警'
+                  : deviceStatusLabel(device)}
+              </text>
+              {#if placement.labelStyle !== 'compact'}
+                <text x="9" y="36" font-size="12" fill={alarm || '#334155'}
+                  >{device.unreported
+                    ? '— 暂无上报数据'
+                    : deviceValueText(device)}</text
+                >
+              {/if}
+            </g>
+          {:else if placement.labelStyle === 'text'}
             <!-- 原图同款黄色工程技术字体，自然融入草坪 -->
             <g class="text-label-style">
               <text
@@ -513,7 +702,13 @@
                 stroke-width="2"
               />
               {#if alarmColor(device)}
-                <circle r="12" fill="none" stroke={alarmColor(device)} stroke-width="1.5" stroke-dasharray="3 2" />
+                <circle
+                  r="12"
+                  fill="none"
+                  stroke={alarmColor(device)}
+                  stroke-width="1.5"
+                  stroke-dasharray="3 2"
+                />
               {/if}
               <text
                 text-anchor="middle"
@@ -545,7 +740,13 @@
                 stroke-width="2.5"
               />
               {#if alarmColor(device)}
-                <circle r="13" fill="none" stroke={alarmColor(device)} stroke-width="1.5" stroke-dasharray="3 2" />
+                <circle
+                  r="13"
+                  fill="none"
+                  stroke={alarmColor(device)}
+                  stroke-width="1.5"
+                  stroke-dasharray="3 2"
+                />
               {/if}
               <text
                 text-anchor="middle"
@@ -590,10 +791,22 @@
         class="placement-ghost"
         pointer-events="none"
       >
-        <circle r="18" fill="rgba(56, 189, 248, 0.2)" stroke="#38bdf8" stroke-width="2" stroke-dasharray="4 3" />
+        <circle
+          r="18"
+          fill="rgba(56, 189, 248, 0.2)"
+          stroke="#38bdf8"
+          stroke-width="2"
+          stroke-dasharray="4 3"
+        />
         <circle r="3" fill="#38bdf8" />
         {#if ghostDevice}
-          <text y="-26" text-anchor="middle" fill="#38bdf8" font-size="13" font-weight="600">
+          <text
+            y="-26"
+            text-anchor="middle"
+            fill="#38bdf8"
+            font-size="13"
+            font-weight="600"
+          >
             {deviceSn(ghostDevice)}
           </text>
         {/if}
@@ -606,7 +819,9 @@
       {#if ghost}
         {Math.round(ghost.x)}, {Math.round(ghost.y)}
       {:else if appState.editSelectionId}
-        {@const p = appState.scene.devices.find((d) => d.deviceId === appState.editSelectionId)}
+        {@const p = appState.scene.devices.find(
+          (d) => d.deviceId === appState.editSelectionId,
+        )}
         {#if p}
           选中 {Math.round(p.x)}, {Math.round(p.y)}
         {/if}
@@ -618,6 +833,41 @@
 </div>
 
 <style>
+  .fit-view {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    z-index: 10;
+    font-size: 12px;
+    background: #0f172a;
+    color: #e2e8f0;
+  }
+  .image-error {
+    position: absolute;
+    top: 55px;
+    right: 12px;
+    z-index: 10;
+    background: #7f1d1d;
+    color: #fff;
+    padding: 10px;
+  }
+  .floor-label {
+    font-family: 'Microsoft YaHei', sans-serif;
+  }
+  .floorplan {
+    background: #e2e8f0;
+  }
+  .map-container.floorplan {
+    background: #e2e8f0;
+  }
+  .floor-label text {
+    pointer-events: none;
+  }
+  .device-node:focus-visible .floor-label rect {
+    stroke: #0284c7;
+    stroke-width: 3;
+  }
+
   .map-container {
     flex: 1;
     position: relative;
@@ -644,7 +894,7 @@
   }
 
   .building-group {
-    cursor: default;
+    cursor: pointer;
   }
 
   /* 汉字宋体/仿宋风格 */
@@ -690,7 +940,7 @@
   }
 
   .device-node.selected .diagram-text,
-  .device-node.selected text {
+  .device-node.selected .device-caption {
     fill: #ffffff !important;
     filter: drop-shadow(0 0 6px #38bdf8) drop-shadow(0 0 10px #38bdf8);
   }

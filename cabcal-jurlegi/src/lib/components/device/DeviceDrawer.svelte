@@ -1,25 +1,46 @@
 <script lang="ts">
-  import { appState, selectDevice, getHistory } from '../../state/app-state.svelte';
   import {
-    relativeQuery,
-    type HistoryQuery,
-  } from '../../services/data-source';
+    appState,
+    selectDevice,
+    getHistory,
+  } from '../../state/app-state.svelte';
+  import { relativeQuery, type HistoryQuery } from '../../services/data-source';
   import type { Device } from '../../types/device';
   import type { HistoricalPoint } from '../../types/device';
-  import { deviceSn } from '../../types/device';
+  import { deviceSn, deviceStatusLabel } from '../../types/device';
   import TrendChart from '../charts/TrendChart.svelte';
   import TimeRangePicker from '../charts/TimeRangePicker.svelte';
 
-  const device = $derived(appState.devices.find((d) => d.id === appState.selectedDeviceId) as Device | undefined);
+  const device = $derived(
+    appState.devices.find((d) => d.id === appState.selectedDeviceId) as
+      | Device
+      | undefined,
+  );
   let historyQuery = $state<HistoryQuery>(relativeQuery('1h'));
   let history = $state<HistoricalPoint[]>([]);
   let loading = $state(false);
+  let historyError = $state(false);
+  let historyRequest = 0;
 
   async function loadHistory() {
+    const request = ++historyRequest;
+    history = [];
+    historyError = false;
+    loading = false;
     if (!device || !device.metrics[0]) return;
     loading = true;
-    history = await getHistory(device.id, device.metrics[0].metric, historyQuery);
-    loading = false;
+    try {
+      const points = await getHistory(
+        device.id,
+        device.metrics[0].metric,
+        historyQuery,
+      );
+      if (request === historyRequest) history = points;
+    } catch {
+      if (request === historyRequest) historyError = true;
+    } finally {
+      if (request === historyRequest) loading = false;
+    }
   }
 
   function onRangeChange(q: HistoryQuery) {
@@ -35,12 +56,6 @@
 
   function close() {
     selectDevice(null);
-  }
-
-  function statusLabel(s: string): string {
-    if (s === 'online') return '在线';
-    if (s === 'offline') return '离线';
-    return '故障';
   }
 
   function typeLabel(t: string): string {
@@ -76,35 +91,55 @@
         <div class="info-row">
           <span class="info-label">设备状态</span>
           <span class="badge {device.status}">
-            {statusLabel(device.status)}
+            {deviceStatusLabel(device)}
           </span>
         </div>
         <div class="info-row">
           <span class="info-label">最后更新</span>
-          <span class="info-value">{new Date(device.lastUpdate).toLocaleString('zh-CN')}</span>
+          <span class="info-value"
+            >{device.lastUpdate
+              ? new Date(device.lastUpdate).toLocaleString('zh-CN')
+              : '暂无上报'}</span
+          >
         </div>
       </section>
 
       <section class="section">
         <h4>实时监测数据</h4>
+        {#if device.metrics.length === 0}
+          <p class="empty-data">已登记安装位置，暂无上报数据。</p>
+        {/if}
         {#each device.metrics as m}
           <div class="metric-card" class:alarm={m.alarm !== false}>
             <div class="metric-header">
               <span class="metric-name">{m.name}</span>
               {#if m.alarm !== false}
-                <span class="badge alarm-l{m.alarm.level}">{alarmLabel(m.alarm.level)}</span>
+                <span class="badge alarm-l{m.alarm.level}"
+                  >{alarmLabel(m.alarm.level)}</span
+                >
               {/if}
             </div>
-            <div class="metric-value" class:alarm-l2={m.alarm !== false && m.alarm.level === 2} class:alarm-l1={m.alarm !== false && m.alarm.level === 1}>
+            <div
+              class="metric-value"
+              class:alarm-l2={m.alarm !== false && m.alarm.level === 2}
+              class:alarm-l1={m.alarm !== false && m.alarm.level === 1}
+            >
               {m.value.toFixed(1)}
               <span class="metric-unit">{m.unit}</span>
             </div>
             {#if m.alarm !== false}
               <div class="alarm-info">
                 <p>原因: {m.alarm.reason}</p>
-                <p>阈值: {m.alarm.threshold.low} ~ {m.alarm.threshold.up} {m.unit}</p>
+                <p>
+                  阈值: {m.alarm.threshold.low} ~ {m.alarm.threshold.up}
+                  {m.unit}
+                </p>
                 {#if m.alarm.action}
-                  <p>联动动作: {m.alarm.action === 'vent_start' ? '启动通风' : m.alarm.action}</p>
+                  <p>
+                    联动动作: {m.alarm.action === 'vent_start'
+                      ? '启动通风'
+                      : m.alarm.action}
+                  </p>
                 {/if}
               </div>
             {/if}
@@ -117,7 +152,9 @@
           <h4>报警信息</h4>
           {#each device.alarms as alarm}
             <div class="alarm-detail alarm-l{alarm.level}-bg">
-              <span class="badge alarm-l{alarm.level}">{alarmLabel(alarm.level)}</span>
+              <span class="badge alarm-l{alarm.level}"
+                >{alarmLabel(alarm.level)}</span
+              >
               <p>{alarm.reason}</p>
             </div>
           {/each}
@@ -129,13 +166,21 @@
         <TimeRangePicker query={historyQuery} onchange={onRangeChange} />
         {#if loading}
           <div class="loading">加载中...</div>
+        {:else if historyError || history.length === 0}
+          <div class="loading">
+            {historyError ? '历史数据暂不可用' : '暂无历史数据'}
+          </div>
         {:else}
           <div class="chart-container">
             <TrendChart
               {history}
               unit={device.metrics[0]?.unit || ''}
               alarmThresholds={device.metrics[0]?.alarm !== false
-                ? (device.metrics[0]?.alarm as { threshold: { low: number; up: number } })?.threshold
+                ? (
+                    device.metrics[0]?.alarm as {
+                      threshold: { low: number; up: number };
+                    }
+                  )?.threshold
                 : undefined}
             />
           </div>

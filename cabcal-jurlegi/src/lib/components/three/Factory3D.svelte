@@ -4,6 +4,7 @@
   import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
   import { appState, selectDevice } from '../../state/app-state.svelte';
   import type { Device } from '../../types/device';
+  import { deviceSn, deviceStatusLabel } from '../../types/device';
 
   let containerEl = $state<HTMLDivElement | null>(null);
   let initError = $state<string | null>(null);
@@ -44,8 +45,12 @@
 
   function deviceValueText(device: Device): string {
     const metric = device.metrics?.[0];
-    if (!metric) return '—';
-    return formatMetricValue(metric.value);
+    const label =
+      device.type === 'gamma'
+        ? `γ${deviceSn(device).slice(-2)}`
+        : `Rn ${device.id.slice(6)}`;
+    if (!metric) return `${label} · ${deviceStatusLabel(device)}`;
+    return `${label} ${formatMetricValue(metric.value)} ${metric.unit}`;
   }
 
   function parseHexColor(hexStr?: string, fallback = 0x475569): number {
@@ -88,7 +93,9 @@
     const font = '700 28px "PingFang SC", "Microsoft YaHei", sans-serif';
     const measure = document.createElement('canvas').getContext('2d');
     if (measure) measure.font = font;
-    const textW = measure ? Math.ceil(measure.measureText(text).width) : text.length * 16;
+    const textW = measure
+      ? Math.ceil(measure.measureText(text).width)
+      : text.length * 16;
     const w = Math.max(96, textW + padX * 2);
     const h = 48;
 
@@ -97,7 +104,9 @@
     canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      const fallback = new THREE.Sprite(new THREE.SpriteMaterial({ color: alarm ? 0x7f1d1d : 0x0f2812 }));
+      const fallback = new THREE.Sprite(
+        new THREE.SpriteMaterial({ color: alarm ? 0x7f1d1d : 0x0f2812 }),
+      );
       fallback.scale.set(80, 28, 1);
       return fallback;
     }
@@ -105,7 +114,9 @@
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const r = 10;
-    ctx.fillStyle = alarm ? 'rgba(127, 29, 29, 0.92)' : 'rgba(15, 40, 18, 0.88)';
+    ctx.fillStyle = alarm
+      ? 'rgba(127, 29, 29, 0.92)'
+      : 'rgba(15, 40, 18, 0.88)';
     ctx.strokeStyle = alarm ? '#fca5a5' : '#c6ed56';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -142,7 +153,10 @@
     root.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
       if (mesh.geometry) mesh.geometry.dispose();
-      const mat = mesh.material as THREE.Material | THREE.Material[] | undefined;
+      const mat = mesh.material as
+        | THREE.Material
+        | THREE.Material[]
+        | undefined;
       if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
       else mat?.dispose();
     });
@@ -153,15 +167,18 @@
 
     // Rebuild into a fresh group so a throw cannot leave an empty black scene.
     let next: THREE.Group;
+    const previousTextures = labelTextures;
+    labelTextures = [];
     try {
       next = buildSceneGroup();
     } catch (err) {
+      for (const texture of labelTextures) texture.dispose();
+      labelTextures = previousTextures;
       console.error('Factory3D buildScene failed', err);
       return;
     }
 
-    for (const texture of labelTextures) texture.dispose();
-    labelTextures = [];
+    for (const texture of previousTextures) texture.dispose();
 
     const previous = threeScene.children.filter((c) => c.userData['sceneRoot']);
     for (const child of previous) {
@@ -196,7 +213,10 @@
     // 地面（与 2D 草地颜色 #77A56B 一致）
     const groundColor = parseHexColor(appState.scene.backgroundColor, 0x77a56b);
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(1600, 1200),
+      new THREE.PlaneGeometry(
+        appState.scene.width + 80,
+        appState.scene.height + 80,
+      ),
       new THREE.MeshStandardMaterial({
         color: groundColor,
         roughness: 0.85,
@@ -205,8 +225,25 @@
       }),
     );
     ground.rotation.x = -Math.PI / 2;
-    ground.position.set(600, -1, 400);
+    ground.position.set(
+      appState.scene.width / 2,
+      -1,
+      appState.scene.height / 2,
+    );
     root.add(ground);
+    const bg = appState.scene.backgroundImage;
+    if (bg) {
+      const texture = new THREE.TextureLoader().load(bg.src);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      labelTextures.push(texture);
+      const plan = new THREE.Mesh(
+        new THREE.PlaneGeometry(bg.width, bg.height),
+        new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide }),
+      );
+      plan.rotation.x = -Math.PI / 2;
+      plan.position.set(bg.x + bg.width / 2, 0, bg.y + bg.height / 2);
+      root.add(plan);
+    }
 
     const objects = appState.scene.objects ?? [];
     for (const obj of objects) {
@@ -237,9 +274,19 @@
           }),
         );
         const edges = new THREE.EdgesGeometry(geo);
-        mesh.add(new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x222222 })));
+        mesh.add(
+          new THREE.LineSegments(
+            edges,
+            new THREE.LineBasicMaterial({ color: 0x222222 }),
+          ),
+        );
         root.add(mesh);
-      } else if (obj.x !== undefined && obj.y !== undefined && obj.width && obj.height) {
+      } else if (
+        obj.x !== undefined &&
+        obj.y !== undefined &&
+        obj.width &&
+        obj.height
+      ) {
         const geo = new THREE.BoxGeometry(obj.width, height, obj.height);
         const mesh = new THREE.Mesh(
           geo,
@@ -249,9 +296,18 @@
             metalness: 0.15,
           }),
         );
-        mesh.position.set(obj.x + obj.width / 2, height / 2, obj.y + obj.height / 2);
+        mesh.position.set(
+          obj.x + obj.width / 2,
+          height / 2,
+          obj.y + obj.height / 2,
+        );
         const edges = new THREE.EdgesGeometry(geo);
-        mesh.add(new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x222222 })));
+        mesh.add(
+          new THREE.LineSegments(
+            edges,
+            new THREE.LineBasicMaterial({ color: 0x222222 }),
+          ),
+        );
         root.add(mesh);
       }
     }
@@ -287,7 +343,7 @@
 
       const hasAlarm = (device.alarms?.length ?? 0) > 0;
       const label = makeValueSprite(deviceValueText(device), hasAlarm);
-      label.position.set(0, 52, 0);
+      label.position.set(0, device.type === 'radon' ? 85 : 52, 0);
       label.userData = { deviceId: device.id };
       group.add(label);
 
@@ -361,12 +417,15 @@
 
     threeScene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(45, 1, 1, 5000);
-    camera.position.set(600, 750, 850);
-    camera.lookAt(600, 0, 400);
+    const cx = appState.scene.width / 2;
+    const cz = appState.scene.height / 2;
+    const distance = Math.max(appState.scene.width, appState.scene.height);
+    camera.position.set(cx, distance, cz + distance * 0.75);
+    camera.lookAt(cx, 0, cz);
     applyCameraSize();
 
     controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(600, 0, 400);
+    controls.target.set(cx, 0, cz);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.update();
@@ -435,7 +494,8 @@
   class="three-container"
   onclick={handleClick}
   onkeydown={handleKeydown}
-  role="application"
+  role="button"
+  aria-label="工厂三维地图，拖动旋转，点击设备查看详情"
   tabindex="-1"
 >
   {#if initError}

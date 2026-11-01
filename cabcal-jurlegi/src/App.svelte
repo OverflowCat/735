@@ -1,12 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { appState, navigate, loadDevices, loadScene } from './lib/state/app-state.svelte';
+  import {
+    appState,
+    navigate,
+    loadDevices,
+  } from './lib/state/app-state.svelte';
   import NavBar from './lib/components/common/NavBar.svelte';
   import MapPage from './lib/components/map/MapPage.svelte';
   import OverviewPage from './lib/components/overview/OverviewPage.svelte';
 
   async function init() {
-    await Promise.all([loadDevices(), loadScene()]);
+    await loadDevices();
   }
 
   function syncHash() {

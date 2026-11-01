@@ -1,19 +1,28 @@
 <script lang="ts">
   import { appState, getHistory } from '../../state/app-state.svelte';
-  import {
-    relativeQuery,
-    type HistoryQuery,
-  } from '../../services/data-source';
+  import { relativeQuery, type HistoryQuery } from '../../services/data-source';
   import type { HistoricalPoint, Device } from '../../types/device';
-  import { deviceSn } from '../../types/device';
+  import { deviceSn, deviceStatusLabel } from '../../types/device';
   import ComparisonChart from '../charts/ComparisonChart.svelte';
   import TimeRangePicker from '../charts/TimeRangePicker.svelte';
 
   const totalDevices = $derived(appState.devices.length);
-  const onlineCount = $derived(appState.devices.filter((d) => d.status === 'online').length);
-  const offlineCount = $derived(appState.devices.filter((d) => d.status === 'offline').length);
-  const faultCount = $derived(appState.devices.filter((d) => d.status === 'fault').length);
-  const alarmCount = $derived(appState.devices.filter((d) => d.alarms.length > 0).length);
+  const onlineCount = $derived(
+    appState.devices.filter((d) => d.status === 'online').length,
+  );
+  const offlineCount = $derived(
+    appState.devices.filter((d) => d.status === 'offline' && !d.unreported)
+      .length,
+  );
+  const unreportedCount = $derived(
+    appState.devices.filter((d) => d.unreported).length,
+  );
+  const faultCount = $derived(
+    appState.devices.filter((d) => d.status === 'fault').length,
+  );
+  const alarmCount = $derived(
+    appState.devices.filter((d) => d.alarms.length > 0).length,
+  );
 
   let searchQuery = $state('');
   const filteredDevices = $derived(
@@ -32,15 +41,29 @@
   let compareMetric = $state<string>('0102060301');
   let compareQuery = $state<HistoryQuery>(relativeQuery('1h'));
   let selectedForCompare = $state<string[]>([]);
-  let compareData = $state<{ deviceId: string; name: string; points: HistoricalPoint[] }[]>([]);
+  let compareData = $state<
+    { deviceId: string; name: string; points: HistoricalPoint[] }[]
+  >([]);
   let compareLoading = $state(false);
 
   const metricOptions = [
-    { value: '0102060301', label: 'γ剂量率实时值', unit: 'nGy/h', types: ['gamma'] },
-    { value: '0102060302', label: '氡及子体浓度实时值', unit: 'Bq/m³', types: ['radon'] },
+    {
+      value: '0102060301',
+      label: 'γ剂量率实时值',
+      unit: 'nGy/h',
+      types: ['gamma'],
+    },
+    {
+      value: '0102060302',
+      label: '氡及子体浓度实时值',
+      unit: 'Bq/m³',
+      types: ['radon'],
+    },
   ];
 
-  const currentMetricOption = $derived(metricOptions.find((m) => m.value === compareMetric)!);
+  const currentMetricOption = $derived(
+    metricOptions.find((m) => m.value === compareMetric)!,
+  );
   const compatibleDevices = $derived(
     appState.devices.filter((d) => currentMetricOption?.types.includes(d.type)),
   );
@@ -65,7 +88,11 @@
       selectedForCompare.map(async (id) => {
         const device = appState.devices.find((d) => d.id === id);
         const points = await getHistory(id, compareMetric, compareQuery);
-        return { deviceId: id, name: deviceSn(device ?? { id, code: id }), points };
+        return {
+          deviceId: id,
+          name: deviceSn(device ?? { id, code: id }),
+          points,
+        };
       }),
     );
     compareData = results;
@@ -82,12 +109,6 @@
     void selectedForCompare.length;
     loadComparison();
   });
-
-  function statusLabel(s: string): string {
-    if (s === 'online') return '在线';
-    if (s === 'offline') return '离线';
-    return '故障';
-  }
 
   function typeLabel(t: string): string {
     if (t === 'gamma') return 'γ剂量率';
@@ -114,6 +135,10 @@
     <div class="summary-card offline">
       <div class="summary-value">{offlineCount}</div>
       <div class="summary-label">离线</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-value">{unreportedCount}</div>
+      <div class="summary-label">未上报</div>
     </div>
     <div class="summary-card fault">
       <div class="summary-value">{faultCount}</div>
@@ -153,7 +178,7 @@
                 <td class="mono sn">{deviceSn(d)}</td>
                 <td>{typeLabel(d.type)}</td>
                 <td>
-                  <span class="badge {d.status}">{statusLabel(d.status)}</span>
+                  <span class="badge {d.status}">{deviceStatusLabel(d)}</span>
                 </td>
                 <td>{metricValue(d)}</td>
                 <td>
@@ -255,10 +280,18 @@
     text-align: center;
   }
 
-  .summary-card.online { border-left: 4px solid var(--status-online); }
-  .summary-card.offline { border-left: 4px solid var(--status-offline); }
-  .summary-card.fault { border-left: 4px solid var(--status-fault); }
-  .summary-card.alarm { border-left: 4px solid var(--alarm-l2); }
+  .summary-card.online {
+    border-left: 4px solid var(--status-online);
+  }
+  .summary-card.offline {
+    border-left: 4px solid var(--status-offline);
+  }
+  .summary-card.fault {
+    border-left: 4px solid var(--status-fault);
+  }
+  .summary-card.alarm {
+    border-left: 4px solid var(--alarm-l2);
+  }
 
   .summary-value {
     font-size: 32px;

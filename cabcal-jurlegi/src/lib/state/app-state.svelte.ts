@@ -2,22 +2,50 @@ import type { Device } from '../types/device';
 import type { DevicePlacement, FactoryScene } from '../types/scene';
 import type { DeviceDataSource, HistoryQuery } from '../services/data-source';
 import { HttpDeviceDataSource } from '../services/http-data-source';
-import { mockDevices, mockScene } from '../data/mock';
+import { mockDevices } from '../data/mock';
+import { mapById, deviceMapId } from '../data/floorplans/maps';
+import { mergeInstalledDevices } from '../data/floorplans/inventory';
+import {
+  MAP_STORAGE_KEY,
+  readMapLayouts,
+  restoreMapScene,
+  type MapLayouts,
+} from '../services/map-layout';
 
 // Singleton data source — HTTP first, with mock data fallback.
 // Set VITE_API_BASE to point at a remote backend (e.g. http://192.168.1.10:3000).
 const apiBase = import.meta.env.VITE_API_BASE ?? '';
 const ds: DeviceDataSource = new HttpDeviceDataSource(apiBase);
 
-const SCENE_STORAGE_KEY = 'cabcal-factory-scene-v1';
+const ACTIVE_MAP_KEY = 'cabcal-active-map-v2';
+const localLayouts: MapLayouts = loadLayouts();
+function loadLayouts(): MapLayouts {
+  try {
+    return readMapLayouts(localStorage);
+  } catch {
+    return {};
+  }
+}
+function initialMapId(): string {
+  try {
+    return mapById(localStorage.getItem(ACTIVE_MAP_KEY) ?? 'site').id;
+  } catch {
+    return 'site';
+  }
+}
+const startingMap = initialMapId();
 
 // --- Reactive state container ---
 // Svelte 5 does not allow reassigning exported $state variables from other modules.
 // We wrap all mutable state in a single exported object.
 
 class AppState {
-  devices: Device[] = $state(mockDevices);
-  scene: FactoryScene = $state<FactoryScene>(loadLocalScene() ?? mockScene);
+  devices: Device[] = $state(mergeInstalledDevices(mockDevices));
+  dataMode: 'mock' | 'live' = $state('mock');
+  activeMapId = $state(startingMap);
+  scene: FactoryScene = $state(
+    restoreMapScene(mapById(startingMap), localLayouts[startingMap]),
+  );
   selectedDeviceId: string | null = $state(null);
   editMode = $state(false);
   /** Device placement selected inside edit mode (for inspector / keyboard ops). */
@@ -43,24 +71,43 @@ function clonePlacements(list: DevicePlacement[]): DevicePlacement[] {
   return list.map((p) => ({ ...p }));
 }
 
-function loadLocalScene(): FactoryScene | null {
+function persistLocalScene(): boolean {
+  const id = appState.activeMapId;
+  localLayouts[id] = {
+    version: mapById(id).version,
+    devices: clonePlacements(appState.scene.devices),
+  };
   try {
-    const raw = localStorage.getItem(SCENE_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as FactoryScene;
-    if (!parsed || !Array.isArray(parsed.devices) || !Array.isArray(parsed.objects)) return null;
-    return parsed;
-  } catch {
-    return null;
+    localStorage.setItem(MAP_STORAGE_KEY, JSON.stringify(localLayouts));
+    localStorage.setItem(ACTIVE_MAP_KEY, id);
+    return true;
+  } catch (err) {
+    console.warn('Failed to persist map layout locally', err);
+    return false;
   }
 }
 
-function persistLocalScene() {
-  try {
-    localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(appState.scene));
-  } catch (err) {
-    console.warn('Failed to persist scene locally', err);
-  }
+export function switchMap(id: string) {
+  const next = mapById(id);
+  if (next.id === appState.activeMapId) return;
+  persistLocalScene();
+  appState.editMode = false;
+  appState.placingDeviceId = null;
+  appState.editSelectionId = null;
+  appState.selectedDeviceId = null;
+  undoStack.length = 0;
+  redoStack.length = 0;
+  appState.activeMapId = next.id;
+  appState.scene = restoreMapScene(next, localLayouts[next.id]);
+  appState.sceneDirty = false;
+  persistLocalScene();
+}
+
+export function mapDevices() {
+  const allowed = new Set(
+    mapById(appState.activeMapId).scene.devices.map((p) => p.deviceId),
+  );
+  return appState.devices.filter((d) => allowed.has(d.id));
 }
 
 function pushUndo() {
@@ -84,7 +131,7 @@ export function snapValue(v: number): number {
 
 export function selectDevice(id: string | null) {
   appState.selectedDeviceId = id;
-  if (id) appState.editSelectionId = id;
+  if (id && appState.editMode) appState.editSelectionId = id;
 }
 
 export function setEditSelection(id: string | null) {
@@ -92,7 +139,9 @@ export function setEditSelection(id: string | null) {
 }
 
 export function toggleEditMode() {
+  if (appState.activeMapId === 'site' || appState.viewMode !== '2d') return;
   appState.editMode = !appState.editMode;
+  appState.selectedDeviceId = null;
   if (!appState.editMode) {
     appState.editSelectionId = null;
     appState.selectedDeviceId = null;
@@ -101,6 +150,8 @@ export function toggleEditMode() {
 }
 
 export function startPlacing(deviceId: string) {
+  if (!appState.editMode || deviceMapId(deviceId) !== appState.activeMapId)
+    return;
   appState.placingDeviceId = deviceId;
   appState.editSelectionId = null;
 }
@@ -120,6 +171,8 @@ export function setViewMode(mode: '2d' | '3d') {
     // Map editing is 2D-only; leave a consistent state when jumping to 3D.
     appState.editMode = false;
     appState.editSelectionId = null;
+    appState.placingDeviceId = null;
+    appState.selectedDeviceId = null;
   }
 }
 
@@ -135,59 +188,55 @@ export function navigate(route: string) {
 export async function loadDevices() {
   try {
     const remote = await ds.getDevices();
-    if (remote && remote.length > 0) {
-      appState.devices = remote;
+    if (Array.isArray(remote)) {
+      appState.devices = mergeInstalledDevices(remote);
+      appState.dataMode = 'live';
     }
   } catch (err) {
-    console.warn('Backend unavailable, using mock devices', err);
+    console.warn('Backend unavailable, using labelled demo readings', err);
   }
 }
 
-export async function loadScene() {
-  try {
-    const remote = await ds.getScene();
-    if (remote && remote.objects && remote.objects.length > 0) {
-      appState.scene = remote;
-      appState.sceneDirty = false;
-      persistLocalScene();
-      return;
-    }
-  } catch (err) {
-    console.warn('Backend unavailable, using local/mock scene', err);
-  }
-  // Keep whatever local overlay the user already saved.
-  if (loadLocalScene()) {
-    appState.sceneDirty = true;
-  }
-}
-
+// The legacy /scene API cannot persist images/multiple floors. Phase 1 uses
+// packaged geometry with versioned per-map edits in this browser only.
 export async function saveScene() {
-  persistLocalScene();
-  try {
-    await ds.updateScene(appState.scene);
-    appState.sceneDirty = false;
-    return true;
-  } catch (err) {
-    console.warn('Backend save failed; scene kept in localStorage', err);
-    // Still treat as saved locally — Phase 1 allows lightweight persistence.
-    appState.sceneDirty = false;
-    return false;
-  }
+  if (!persistLocalScene())
+    throw new Error('浏览器存储不可用，布局仅保留在当前会话');
+  appState.sceneDirty = false;
+  return false; // Phase 1 saves layouts on this browser only.
 }
 
-/** Restore mock scene placements (keeps building geometry). */
 export function resetPlacements() {
   pushUndo();
-  appState.scene.devices = clonePlacements(mockScene.devices);
+  appState.scene.devices = clonePlacements(
+    mapById(appState.activeMapId).scene.devices,
+  );
   appState.editSelectionId = null;
+  appState.selectedDeviceId = null;
+  appState.placingDeviceId = null;
   markDirty();
 }
 
+// Paired gamma/radon records share one physical installation anchor.
+function moveInstallation(deviceId: string, x: number, y: number) {
+  const defaults = mapById(appState.activeMapId).scene.devices;
+  const anchor = defaults.find((p) => p.deviceId === deviceId);
+  if (!anchor) return;
+  const paired = new Set(
+    defaults
+      .filter((p) => p.x === anchor.x && p.y === anchor.y)
+      .map((p) => p.deviceId),
+  );
+  for (const p of appState.scene.devices) {
+    if (paired.has(p.deviceId)) {
+      p.x = Math.max(0, Math.min(appState.scene.width, x));
+      p.y = Math.max(0, Math.min(appState.scene.height, y));
+    }
+  }
+}
+
 export function moveDevice(deviceId: string, x: number, y: number) {
-  const placement = appState.scene.devices.find((d) => d.deviceId === deviceId);
-  if (!placement) return;
-  placement.x = x;
-  placement.y = y;
+  moveInstallation(deviceId, x, y);
   markDirty();
 }
 
@@ -198,13 +247,16 @@ export function beginPlacementChange() {
 
 export function removeDevicePlacement(deviceId: string) {
   pushUndo();
-  appState.scene.devices = appState.scene.devices.filter((d) => d.deviceId !== deviceId);
+  appState.scene.devices = appState.scene.devices.filter(
+    (d) => d.deviceId !== deviceId,
+  );
   if (appState.editSelectionId === deviceId) appState.editSelectionId = null;
   if (appState.selectedDeviceId === deviceId) appState.selectedDeviceId = null;
   markDirty();
 }
 
 export function addDevicePlacement(deviceId: string, x: number, y: number) {
+  if (deviceMapId(deviceId) !== appState.activeMapId) return;
   pushUndo();
   const existing = appState.scene.devices.find((d) => d.deviceId === deviceId);
   if (existing) {
@@ -213,9 +265,16 @@ export function addDevicePlacement(deviceId: string, x: number, y: number) {
   } else {
     appState.scene.devices = [
       ...appState.scene.devices,
-      { deviceId, x, y, labelStyle: 'badge' },
+      {
+        ...mapById(appState.activeMapId).scene.devices.find(
+          (p) => p.deviceId === deviceId,
+        )!,
+        x,
+        y,
+      },
     ];
   }
+  moveInstallation(deviceId, x, y);
   appState.editSelectionId = deviceId;
   appState.placingDeviceId = null;
   markDirty();
@@ -229,6 +288,8 @@ export function updatePlacement(
   if (!placement) return;
   pushUndo();
   Object.assign(placement, patch);
+  if (patch.x !== undefined || patch.y !== undefined)
+    moveInstallation(deviceId, placement.x, placement.y);
   markDirty();
 }
 
@@ -245,8 +306,7 @@ export function nudgeSelectedPlacement(dx: number, dy: number) {
   const placement = appState.scene.devices.find((d) => d.deviceId === id);
   if (!placement) return;
   pushUndo();
-  placement.x = Math.max(0, Math.min(appState.scene.width, placement.x + dx));
-  placement.y = Math.max(0, Math.min(appState.scene.height, placement.y + dy));
+  moveInstallation(id, placement.x + dx, placement.y + dy);
   markDirty();
 }
 
@@ -274,7 +334,11 @@ export function canRedo() {
   return redoStack.length > 0;
 }
 
-export async function getHistory(deviceId: string, metric: string, query: HistoryQuery) {
+export async function getHistory(
+  deviceId: string,
+  metric: string,
+  query: HistoryQuery,
+) {
   return ds.getHistory(deviceId, metric, query);
 }
 

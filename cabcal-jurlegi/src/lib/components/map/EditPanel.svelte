@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     appState,
+    mapDevices,
     removeDevicePlacement,
     updatePlacement,
     setPlacementLabelStyle,
@@ -10,7 +11,6 @@
     undoPlacement,
     redoPlacement,
     nudgeSelectedPlacement,
-    beginPlacementChange,
     startPlacing,
     cancelPlacing,
   } from '../../state/app-state.svelte';
@@ -18,22 +18,28 @@
   import { deviceSn } from '../../types/device';
   import type { DevicePlacement } from '../../types/scene';
 
-  let saveState = $state<'idle' | 'saving' | 'saved' | 'local'>('idle');
+  let saveState = $state<'idle' | 'saving' | 'saved' | 'local' | 'error'>(
+    'idle',
+  );
 
   const unplacedDevices = $derived(
-    appState.devices.filter((d) => !appState.scene.devices.find((p) => p.deviceId === d.id))
+    mapDevices().filter(
+      (d) => !appState.scene.devices.find((p) => p.deviceId === d.id),
+    ),
   );
 
   const selectedPlacement = $derived(
     appState.editSelectionId
-      ? appState.scene.devices.find((p) => p.deviceId === appState.editSelectionId)
-      : undefined
+      ? appState.scene.devices.find(
+          (p) => p.deviceId === appState.editSelectionId,
+        )
+      : undefined,
   );
 
   const selectedDevice = $derived(
     appState.editSelectionId
       ? appState.devices.find((d) => d.id === appState.editSelectionId)
-      : undefined
+      : undefined,
   );
 
   function deviceById(id: string): Device | undefined {
@@ -42,8 +48,12 @@
 
   async function handleSave() {
     saveState = 'saving';
-    const ok = await saveScene();
-    saveState = ok ? 'saved' : 'local';
+    try {
+      const ok = await saveScene();
+      saveState = ok ? 'saved' : 'local';
+    } catch {
+      saveState = 'error';
+    }
     setTimeout(() => {
       saveState = 'idle';
     }, 1800);
@@ -54,7 +64,13 @@
     const n = Number(input.value);
     if (!selectedPlacement || Number.isNaN(n)) return;
     updatePlacement(selectedPlacement.deviceId, {
-      [axis]: Math.max(0, Math.min(axis === 'x' ? appState.scene.width : appState.scene.height, n)),
+      [axis]: Math.max(
+        0,
+        Math.min(
+          axis === 'x' ? appState.scene.width : appState.scene.height,
+          n,
+        ),
+      ),
     });
   }
 
@@ -72,7 +88,7 @@
   <header class="panel-header">
     <span class="edit-label">编辑模式</span>
     <span class="dirty-flag" class:dirty={appState.sceneDirty}>
-      {appState.sceneDirty ? '未保存' : '已同步'}
+      {appState.sceneDirty ? '布局已修改' : '本地布局'}
     </span>
   </header>
 
@@ -89,20 +105,38 @@
       </label>
     </div>
     <div class="btn-row">
-      <button class="small" onclick={handleSave} disabled={saveState === 'saving'}>
+      <button
+        class="small"
+        onclick={handleSave}
+        disabled={saveState === 'saving'}
+      >
         {#if saveState === 'saving'}
           保存中…
         {:else if saveState === 'saved'}
           已保存
         {:else if saveState === 'local'}
           已存本地
+        {:else if saveState === 'error'}
+          保存失败
         {:else}
           保存布局
         {/if}
       </button>
-      <button class="small" onclick={() => undoPlacement()} title="撤销 (Ctrl+Z)">撤销</button>
-      <button class="small" onclick={() => redoPlacement()} title="重做 (Ctrl+Shift+Z)">重做</button>
-      <button class="small danger" onclick={() => resetPlacements()} title="恢复默认点位">
+      <button
+        class="small"
+        onclick={() => undoPlacement()}
+        title="撤销 (Ctrl+Z)">撤销</button
+      >
+      <button
+        class="small"
+        onclick={() => redoPlacement()}
+        title="重做 (Ctrl+Shift+Z)">重做</button
+      >
+      <button
+        class="small danger"
+        onclick={() => resetPlacements()}
+        title="恢复默认点位"
+      >
         重置点位
       </button>
     </div>
@@ -113,9 +147,15 @@
     {#if appState.placingDeviceId}
       <div class="placing-hint">
         <span>
-          正在放置「{deviceSn(deviceById(appState.placingDeviceId) ?? { id: appState.placingDeviceId, code: appState.placingDeviceId })}」— 点击地图确定位置
+          正在放置「{deviceSn(
+            deviceById(appState.placingDeviceId) ?? {
+              id: appState.placingDeviceId,
+              code: appState.placingDeviceId,
+            },
+          )}」— 点击地图确定位置
         </span>
-        <button class="small" onclick={() => cancelPlacing()}>取消 (Esc)</button>
+        <button class="small" onclick={() => cancelPlacing()}>取消 (Esc)</button
+        >
       </div>
     {:else if unplacedDevices.length > 0}
       <div class="device-list">
@@ -127,7 +167,7 @@
         {/each}
       </div>
     {:else}
-      <p class="empty-hint">全部设备已放置到地图上</p>
+      <p class="empty-hint">本层设备已全部放置</p>
     {/if}
   </section>
 
@@ -170,17 +210,25 @@
           <span>标注样式</span>
           <select value={p.labelStyle ?? 'badge'} onchange={onLabelStyleChange}>
             <option value="badge">指示标</option>
-            <option value="text">工程字体</option>
+            <option value="text">完整标注</option>
             <option value="compact">紧凑</option>
           </select>
         </label>
 
         <div class="hint-line">方向键微调 · Delete 移除</div>
         <div class="btn-row">
-          <button class="small" onclick={() => nudgeSelectedPlacement(-10, 0)}>←</button>
-          <button class="small" onclick={() => nudgeSelectedPlacement(10, 0)}>→</button>
-          <button class="small" onclick={() => nudgeSelectedPlacement(0, -10)}>↑</button>
-          <button class="small" onclick={() => nudgeSelectedPlacement(0, 10)}>↓</button>
+          <button class="small" onclick={() => nudgeSelectedPlacement(-10, 0)}
+            >←</button
+          >
+          <button class="small" onclick={() => nudgeSelectedPlacement(10, 0)}
+            >→</button
+          >
+          <button class="small" onclick={() => nudgeSelectedPlacement(0, -10)}
+            >↑</button
+          >
+          <button class="small" onclick={() => nudgeSelectedPlacement(0, 10)}
+            >↓</button
+          >
           <button
             class="small danger"
             onclick={() => removeDevicePlacement(p.deviceId)}
@@ -195,6 +243,7 @@
   </section>
 
   <footer class="panel-footer">
+    <div>布局仅保存在当前浏览器</div>
     <div>拖空白平移 · 滚轮缩放</div>
     <div>Esc 取消放置 · Ctrl+Z 撤销</div>
   </footer>

@@ -1,6 +1,11 @@
 // Domain device model combining protocol data with scene placement.
 
-import type { DeviceType, DeviceStatus, AlarmInfo, MetricData } from './protocol';
+import type {
+  DeviceType,
+  DeviceStatus,
+  AlarmInfo,
+  MetricData,
+} from './protocol';
 
 export interface Device {
   id: string;
@@ -12,6 +17,8 @@ export interface Device {
   metrics: MetricData[];
   lastUpdate: string; // ISO string
   alarms: AlarmInfo[];
+  assetSn?: string;
+  unreported?: boolean;
 }
 
 export interface HistoricalPoint {
@@ -26,6 +33,15 @@ export interface DeviceHistory {
 }
 
 /** Short unique label (asset SN). Field inventory uses SN as `id`; names may be identical. */
-export function deviceSn(d: Pick<Device, 'id' | 'code'>): string {
-  return d.id || d.code;
+export function deviceSn(d: Pick<Device, 'id' | 'code' | 'assetSn'>): string {
+  return d.assetSn || d.id || d.code;
+}
+
+export function deviceStatusLabel(d: Device): string {
+  if (d.unreported) return '未上报';
+  return d.status === 'online'
+    ? '在线'
+    : d.status === 'offline'
+      ? '离线'
+      : '故障';
 }

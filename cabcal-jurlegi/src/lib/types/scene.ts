@@ -28,6 +28,7 @@ export interface SceneObject {
   labelFontSize?: number;
   labelX?: number;
   labelY?: number;
+  targetMapId?: string;
 }
 
 export interface DevicePlacement {
@@ -35,12 +36,30 @@ export interface DevicePlacement {
   x: number;
   y: number;
   labelStyle?: 'badge' | 'text' | 'compact';
+  labelDx?: number;
+  labelDy?: number;
 }
 
 export interface FactoryScene {
   width: number;
   height: number;
   backgroundColor?: string;
+  backgroundImage?: {
+    src: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
   objects: SceneObject[];
   devices: DevicePlacement[];
+}
+
+export interface MapDefinition {
+  id: string;
+  name: string;
+  building: string;
+  floor?: number;
+  version: number;
+  scene: FactoryScene;
 }

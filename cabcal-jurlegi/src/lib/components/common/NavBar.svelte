@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { appState, navigate, toggleEditMode, setViewMode } from '../../state/app-state.svelte';
+  import {
+    appState,
+    navigate,
+    toggleEditMode,
+    setViewMode,
+  } from '../../state/app-state.svelte';
 
   const isMap = $derived(appState.currentRoute === '/map');
 </script>
@@ -11,10 +16,7 @@
   </div>
 
   <div class="nav-links">
-    <button
-      class:active={isMap}
-      onclick={() => navigate('/map')}
-    >
+    <button class:active={isMap} onclick={() => navigate('/map')}>
       工厂地图
     </button>
     <button
@@ -44,6 +46,10 @@
       {#if appState.viewMode === '2d'}
         <button
           class:active={appState.editMode}
+          disabled={appState.activeMapId === 'site'}
+          title={appState.activeMapId === 'site'
+            ? '进入建筑平面图后编辑设备位置'
+            : '编辑当前平面图'}
           onclick={toggleEditMode}
         >
           {appState.editMode ? '退出编辑' : '编辑模式'}
