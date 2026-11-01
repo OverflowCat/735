@@ -17,8 +17,36 @@
   } from '../../state/app-state.svelte';
   import type { Device } from '../../types/device';
   import { deviceSn, deviceStatusLabel } from '../../types/device';
+  import {
+    siteBuildingDisplays,
+    siteInlinePlacements,
+  } from '../../data/floorplans/maps';
+  import BuildingDevicePanel from './BuildingDevicePanel.svelte';
 
   let svgEl = $state<SVGSVGElement | null>(null);
+  let containerWidth = $state(0);
+  let containerHeight = $state(0);
+  const sitePlacements = $derived(
+    appState.activeMapId === 'site'
+      ? siteInlinePlacements
+      : appState.scene.devices,
+  );
+
+  function panelAnchor(buildingId: string) {
+    const building = appState.scene.objects.find(
+      (o) => o.id === `bldg-${buildingId}`,
+    );
+    const x = (building?.x ?? 0) + (building?.width ?? 0) + 20;
+    const y = building?.y ?? 0;
+    const scale = Math.min(
+      containerWidth / viewBox.w,
+      containerHeight / viewBox.h,
+    );
+    return {
+      x: (containerWidth - viewBox.w * scale) / 2 + (x - viewBox.x) * scale,
+      y: (containerHeight - viewBox.h * scale) / 2 + (y - viewBox.y) * scale,
+    };
+  }
 
   // --- Interaction state ---
   let draggingId = $state<string | null>(null);
@@ -342,6 +370,8 @@
 
 <div
   class="map-container"
+  bind:clientWidth={containerWidth}
+  bind:clientHeight={containerHeight}
   class:floorplan={isFloorplan}
   class:edit-mode={appState.editMode}
 >
@@ -581,7 +611,7 @@
         >
           {obj.label}
         </text>
-        {#if obj.targetMapId}
+        {#if obj.targetMapId && siteBuildingDisplays.some((b) => b.mapId === obj.targetMapId && b.floating)}
           <text
             x={obj.labelX}
             y={(obj.labelY ?? 0) + 32}
@@ -595,7 +625,7 @@
     {/each}
 
     <!-- 现场监测设备点位与数据标注 -->
-    {#each appState.activeMapId === 'site' ? [] : appState.scene.devices as placement (placement.deviceId)}
+    {#each sitePlacements as placement (placement.deviceId)}
       {@const device = deviceById(placement.deviceId)}
       {#if device}
         {@const isSel =
@@ -677,6 +707,49 @@
                     : deviceValueText(device)}</text
                 >
               {/if}
+            </g>
+          {:else if appState.activeMapId === 'site'}
+            {@const alarm = alarmColor(device)}
+            <title
+              >{deviceSn(device)} · {device.name} · {deviceStatusLabel(
+                device,
+              )}</title
+            >
+            <g class="site-device-label">
+              <rect
+                x="-49"
+                y="-19"
+                width="98"
+                height="40"
+                rx="5"
+                fill="rgba(18, 37, 29, .92)"
+                stroke={alarm || statusColor(device.status)}
+                stroke-width="1.5"
+              />
+              <text
+                y="-4"
+                text-anchor="middle"
+                fill="#f0fdf4"
+                font-size="12"
+                font-weight="700"
+                >{shortLabel(device)}
+                <tspan font-size="9" font-weight="400">
+                  · {alarm
+                    ? device.alarms.some((a) => a.level === 2)
+                      ? '二级报警'
+                      : '一级报警'
+                    : deviceStatusLabel(device)}</tspan
+                >
+              </text>
+              <text
+                y="12"
+                text-anchor="middle"
+                fill={alarm || '#dcfce7'}
+                font-size="11"
+                >{device.unreported
+                  ? '— 暂无数据'
+                  : deviceValueText(device)}</text
+              >
             </g>
           {:else if placement.labelStyle === 'text'}
             <!-- 原图同款黄色工程技术字体，自然融入草坪 -->
@@ -814,6 +887,21 @@
     {/if}
   </svg>
 
+  {#if appState.activeMapId === 'site' && containerWidth > 0 && containerHeight > 0}
+    {#each siteBuildingDisplays.filter((b) => b.floating) as building (building.id)}
+      {@const anchor = panelAnchor(building.id)}
+      <BuildingDevicePanel
+        buildingId={building.id}
+        name={building.name}
+        maps={building.maps}
+        anchorX={anchor.x}
+        anchorY={anchor.y}
+        availableWidth={containerWidth}
+        availableHeight={containerHeight}
+      />
+    {/each}
+  {/if}
+
   {#if appState.editMode}
     <div class="coord-readout" aria-hidden="true">
       {#if ghost}
@@ -862,6 +950,14 @@
   }
   .floor-label text {
     pointer-events: none;
+  }
+  .site-device-label text {
+    pointer-events: none;
+  }
+  .device-node:focus-visible .site-device-label rect,
+  .device-node.selected .site-device-label rect {
+    stroke: #38bdf8;
+    stroke-width: 3;
   }
   .device-node:focus-visible .floor-label rect {
     stroke: #0284c7;

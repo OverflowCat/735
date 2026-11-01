@@ -59,7 +59,7 @@
       {/if}
       <strong>{currentMap.name}</strong>
       {#if currentMap.id === 'site'}
-        <span>选择建筑查看监测点位</span>
+        <span>厂房点位 / 悬浮列表 · 点击设备查看测量详情</span>
       {:else}
         <span
           >{currentDevices.filter((d) => d.type === 'gamma').length} 个 γ · {currentDevices.filter(

@@ -6,7 +6,12 @@ import {
   mergeInstalledDevices,
   radonPairs,
 } from '../src/lib/data/floorplans/inventory';
-import { mapDefinitions, mapById, siteBuildingDisplays, siteInlinePlacements } from '../src/lib/data/floorplans/maps';
+import {
+  mapDefinitions,
+  mapById,
+  siteBuildingDisplays,
+  siteInlinePlacements,
+} from '../src/lib/data/floorplans/maps';
 import {
   MAP_STORAGE_KEY,
   readMapLayouts,
@@ -16,7 +21,10 @@ import configuredDevices from '../../devices.json';
 
 test('overview uses one water-plant list and direct pins for every small single-floor installation', () => {
   const floating = siteBuildingDisplays.filter((b) => b.floating);
-  assert.deepEqual(floating.map((b) => b.id), ['hydromet']);
+  assert.deepEqual(
+    floating.map((b) => b.id),
+    ['hydromet'],
+  );
   assert.equal(floating[0].ids.size, 27);
   assert.equal(siteInlinePlacements.length, 13);
   const inline = new Set(siteInlinePlacements.map((p) => p.deviceId));

@@ -24,6 +24,9 @@ export const mapDefinitions: MapDefinition[] = [
       ...mockScene,
       objects: mockScene.objects.map((o) => ({
         ...o,
+        ...(o.id === 'bldg-c35' ? { labelY: 205 } : {}),
+        ...(o.id === 'bldg-c3' ? { labelY: 765 } : {}),
+        ...(o.id === 'bldg-hydromet' ? { labelColor: '#e2eece' } : {}),
         targetMapId: buildings.find((b) => `bldg-${b.id}` === o.id)?.mapId,
       })),
       devices: [
@@ -147,3 +150,54 @@ export function deviceMapId(deviceId: string): string | undefined {
       m.id !== 'site' && m.scene.devices.some((p) => p.deviceId === deviceId),
   )?.id;
 }
+
+// Dense or multi-floor buildings use a list; small single-floor buildings keep roof pins.
+export const siteBuildingDisplays = buildings.map((building) => {
+  const maps = mapDefinitions.filter((m) => m.building === building.id);
+  const ids = new Set(
+    maps.flatMap((m) => m.scene.devices.map((p) => p.deviceId)),
+  );
+  return { ...building, maps, ids, floating: maps.length > 1 || ids.size > 6 };
+});
+
+const roofPositions: Record<string, [number, number][]> = {
+  c19: [
+    [95, 110],
+    [205, 110],
+    [315, 110],
+  ],
+  c35: [
+    [95, 275],
+    [205, 275],
+    [305, 310],
+    [395, 395],
+  ],
+  c3: [
+    [187, 515],
+    [187, 600],
+    [187, 685],
+  ],
+  filter: [
+    [790, 135],
+    [900, 135],
+    [1010, 135],
+  ],
+};
+
+export const siteInlinePlacements: DevicePlacement[] = siteBuildingDisplays
+  .filter((building) => !building.floating)
+  .flatMap((building) =>
+    [...building.ids].flatMap((deviceId, index) => {
+      const position = roofPositions[building.id]?.[index];
+      return position
+        ? [
+            {
+              deviceId,
+              x: position[0],
+              y: position[1],
+              labelStyle: 'compact' as const,
+            },
+          ]
+        : [];
+    }),
+  );
