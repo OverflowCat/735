@@ -148,7 +148,7 @@ try {
   await page.locator('.drawer').waitFor();
   assert.match(await page.locator('.drawer').innerText(), /2026012916/);
   assert.equal(
-    await page.locator('.map-heading strong').innerText(),
+    await page.locator('.map-page').getAttribute('aria-label'),
     '厂区总览',
   );
   await page.locator('.close-btn').click();

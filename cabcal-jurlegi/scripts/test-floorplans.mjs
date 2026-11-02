@@ -16,7 +16,7 @@ try {
       emptyOutDir: false,
       minify: false,
       lib: {
-        entry: 'tests/floorplans.test.ts',
+        entry: process.argv[2] ?? 'tests/floorplans.test.ts',
         formats: ['es'],
         fileName: () => 'tests.mjs',
       },

@@ -18,6 +18,10 @@ export type HistoryQuery =
   | { kind: 'relative'; range: TimeRange }
   | { kind: 'absolute'; startMs: number; endMs: number };
 
+export interface HistoryRequestOptions {
+  signal?: AbortSignal;
+}
+
 export function relativeQuery(range: TimeRange): HistoryQuery {
   return { kind: 'relative', range };
 }
@@ -29,7 +33,12 @@ export function absoluteQuery(startMs: number, endMs: number): HistoryQuery {
 export interface DeviceDataSource {
   getDevices(): Promise<Device[]>;
   getDevice(id: string): Promise<Device | undefined>;
-  getHistory(deviceId: string, metric: string, query: HistoryQuery): Promise<HistoricalPoint[]>;
+  getHistory(
+    deviceId: string,
+    metric: string,
+    query: HistoryQuery,
+    options?: HistoryRequestOptions,
+  ): Promise<HistoricalPoint[]>;
   getScene(): Promise<FactoryScene>;
   updateScene(scene: FactoryScene): Promise<void>;
 }

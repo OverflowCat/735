@@ -1,10 +1,12 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import {
     appState,
     selectDevice,
-    getHistory,
+    dataSource,
   } from '../../state/app-state.svelte';
   import { relativeQuery, type HistoryQuery } from '../../services/data-source';
+  import { loadHistoryBatches } from '../../services/history-batches';
   import type { Device } from '../../types/device';
   import type { HistoricalPoint } from '../../types/device';
   import { deviceSn, deviceStatusLabel } from '../../types/device';
@@ -20,38 +22,64 @@
   let history = $state<HistoricalPoint[]>([]);
   let loading = $state(false);
   let historyError = $state(false);
-  let historyRequest = 0;
+  let completedBatches = $state(0);
+  let totalBatches = $state(0);
+  let retry = $state(0);
+  const historyDeviceId = $derived(device?.id);
+  const historyMetric = $derived(device?.metrics[0]?.metric);
 
-  async function loadHistory() {
-    const request = ++historyRequest;
+  async function loadHistory(
+    id: string,
+    metric: string,
+    query: HistoryQuery,
+    controller: AbortController,
+  ) {
     history = [];
     historyError = false;
-    loading = false;
-    if (!device || !device.metrics[0]) return;
+    completedBatches = 0;
+    totalBatches = 0;
     loading = true;
     try {
-      const points = await getHistory(
-        device.id,
-        device.metrics[0].metric,
-        historyQuery,
+      await loadHistoryBatches(
+        dataSource,
+        id,
+        metric,
+        query,
+        controller.signal,
+        (batch) => {
+          history = batch.points;
+          completedBatches = batch.completed;
+          totalBatches = batch.total;
+        },
       );
-      if (request === historyRequest) history = points;
     } catch {
-      if (request === historyRequest) historyError = true;
+      if (!controller.signal.aborted) historyError = true;
     } finally {
-      if (request === historyRequest) loading = false;
+      if (!controller.signal.aborted) loading = false;
     }
   }
 
   function onRangeChange(q: HistoryQuery) {
     historyQuery = q;
-    void loadHistory();
   }
 
   $effect(() => {
-    if (device) {
-      loadHistory();
-    }
+    const id = historyDeviceId;
+    const metric = historyMetric;
+    const query = historyQuery;
+    void retry;
+    const controller = new AbortController();
+    untrack(() => {
+      if (id && metric) void loadHistory(id, metric, query, controller);
+      else {
+        history = [];
+        loading = false;
+        historyError = false;
+        completedBatches = 0;
+        totalBatches = 0;
+      }
+    });
+    return () => controller.abort();
   });
 
   function close() {
@@ -164,13 +192,23 @@
       <section class="section">
         <h4>历史趋势</h4>
         <TimeRangePicker query={historyQuery} onchange={onRangeChange} />
-        {#if loading}
-          <div class="loading">加载中...</div>
-        {:else if historyError || history.length === 0}
-          <div class="loading">
-            {historyError ? '历史数据暂不可用' : '暂无历史数据'}
-          </div>
-        {:else}
+        <div class="history-status" role="status" aria-live="polite">
+          {#if loading}
+            {completedBatches === 0
+              ? '正在加载最近时段…'
+              : `已载入 ${completedBatches}/${totalBatches} 批 · ${history.length} 条，继续加载更早数据…`}
+          {:else if historyError}
+            {history.length
+              ? `已保留 ${history.length} 条数据 · 后续加载失败`
+              : '历史数据暂不可用'}
+            <button class="small" onclick={() => retry++}>重试</button>
+          {:else if history.length > 0}
+            已载入 {history.length} 条 · 完整时段
+          {:else}
+            暂无历史数据
+          {/if}
+        </div>
+        {#if history.length > 0}
           <div class="chart-container">
             <TrendChart
               {history}
@@ -375,11 +413,14 @@
     background: var(--alarm-l2-bg);
   }
 
-  .loading {
-    text-align: center;
-    padding: 20px;
+  .history-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 6px 0;
     color: var(--text-muted);
-    font-size: 14px;
+    font-size: 12px;
   }
 
   .chart-container {

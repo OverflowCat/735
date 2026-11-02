@@ -42,6 +42,8 @@ const startingMap = initialMapId();
 class AppState {
   devices: Device[] = $state(mergeInstalledDevices(mockDevices));
   dataMode: 'mock' | 'live' = $state('mock');
+  dataRefreshFailed = $state(false);
+  dataUpdatedAt: string | null = $state(null);
   activeMapId = $state(startingMap);
   scene: FactoryScene = $state(
     restoreMapScene(mapById(startingMap), localLayouts[startingMap]),
@@ -185,15 +187,22 @@ export function navigate(route: string) {
   window.location.hash = route;
 }
 
+let loadingDevices = false;
 export async function loadDevices() {
+  if (loadingDevices) return;
+  loadingDevices = true;
   try {
     const remote = await ds.getDevices();
-    if (Array.isArray(remote)) {
-      appState.devices = mergeInstalledDevices(remote);
-      appState.dataMode = 'live';
-    }
+    if (!Array.isArray(remote)) throw new Error('Invalid device response');
+    appState.devices = mergeInstalledDevices(remote);
+    appState.dataMode = 'live';
+    appState.dataUpdatedAt = new Date().toISOString();
+    appState.dataRefreshFailed = false;
   } catch (err) {
-    console.warn('Backend unavailable, using labelled demo readings', err);
+    appState.dataRefreshFailed = true;
+    console.warn('Device refresh failed; retaining previous readings', err);
+  } finally {
+    loadingDevices = false;
   }
 }
 

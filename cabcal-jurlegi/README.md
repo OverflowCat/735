@@ -72,6 +72,10 @@ GET  /api/v1/devices/:id/history?metric=xxx&range=15m|1h|24h|7d
 
 后端不可用时显示明确标注的演示数据；连接成功后，以后端读数替换演示数据。已登记但 API 未返回的设备显示“未上报”，不补演示测值。
 
+页面每 5 秒拉取设备数据，后台标签页暂停定时请求，重新可见或获得焦点时立即刷新。设备请求禁用缓存，10 秒超时，避免请求重叠。连接成功后若刷新失败，保留上次现场读数并显示“刷新失败”，恢复连接后自动更新；悬停数据状态可查看上次同步时间。同步时间表示浏览器成功读取 API 的时间，仪器测量时间见设备详情“最后更新”。
+
+设备详情历史趋势按时间分批查询，先加载所选区间末尾 15 分钟，再向前扩展，单批最多一天。首批返回就显示图表和进度，后续批次追加；切换设备/区间或关闭详情会取消旧请求。实时设备轮询不会重启历史加载。后续批次失败保留已加载点并可重试，单批请求 15 秒超时。所有批次使用同一个固定结束时间，按时间排序并去重，不使用模拟历史数据。
+
 ## 平面图与设备配置
 
 `../devices.json` 是清单设备的 ID、名称与氡配对来源，构建时直接导入。旧 20 台 γ 通过 `data/floorplans/inventory.ts` 的 IP / `gamma_XX` 映射关联资产号，旧总线氡配对按 2026-10-30 现场记录校正（`.16` 为氡36，暂无上报）；配置中的显式配对优先。生产参数顺序改变时，需要同步旧 ID 映射。采集配置调整后重新构建前端。
@@ -90,6 +94,7 @@ python3 scripts/export-floorplans.py
 
 ```bash
 pnpm run test:maps  # 清单映射、缺少上报、分图存储、版本及损坏缓存
+pnpm run test:history  # 分批时间覆盖、顺序、取消与部分失败
 pnpm run check
 pnpm run build
 ```
@@ -98,6 +103,8 @@ pnpm run build
 
 ```bash
 node tests/map-browser.mjs
+node tests/live-refresh-browser.mjs  # 自动刷新、断线恢复、请求去重与超时
+node tests/history-browser.mjs  # 分批显示、自定义时间、历史与实时隔离、取消和重试
 ```
 
 可通过 `PLAYWRIGHT_MODULE` 指定 Playwright 模块路径，`CHROMIUM_PATH` 指定浏览器，`MAP_TEST_URL` 指向本地服务，`MAP_SCREENSHOT` 保存截图。该检查会拦截 API 返回固定测试数据，不访问现场设备。

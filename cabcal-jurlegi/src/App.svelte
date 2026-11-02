@@ -9,10 +9,6 @@
   import MapPage from './lib/components/map/MapPage.svelte';
   import OverviewPage from './lib/components/overview/OverviewPage.svelte';
 
-  async function init() {
-    await loadDevices();
-  }
-
   function syncHash() {
     const hash = window.location.hash.replace('#', '') || '/map';
     navigate(hash);
@@ -21,8 +17,21 @@
   onMount(() => {
     syncHash();
     window.addEventListener('hashchange', syncHash);
-    init();
-    return () => window.removeEventListener('hashchange', syncHash);
+    void loadDevices();
+    const refreshTimer = window.setInterval(() => {
+      if (!document.hidden) void loadDevices();
+    }, 5000);
+    function refreshOnReturn() {
+      if (!document.hidden) void loadDevices();
+    }
+    window.addEventListener('focus', refreshOnReturn);
+    document.addEventListener('visibilitychange', refreshOnReturn);
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener('hashchange', syncHash);
+      window.removeEventListener('focus', refreshOnReturn);
+      document.removeEventListener('visibilitychange', refreshOnReturn);
+    };
   });
 </script>
 

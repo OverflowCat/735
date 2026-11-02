@@ -68,8 +68,9 @@ async function floor(n) {
   await page.waitForFunction(
     (n) =>
       document
-        .querySelector('.map-heading strong')
-        ?.textContent?.includes(['', '一楼', '二楼', '三楼', '四楼'][n]),
+        .querySelector('.map-page')
+        ?.getAttribute('aria-label')
+        ?.includes(['', '一楼', '二楼', '三楼', '四楼'][n]),
     n,
   );
 }

@@ -2,7 +2,11 @@
 
 import type { Device, HistoricalPoint } from '../types/device';
 import type { FactoryScene } from '../types/scene';
-import type { DeviceDataSource, HistoryQuery } from './data-source';
+import type {
+  DeviceDataSource,
+  HistoryQuery,
+  HistoryRequestOptions,
+} from './data-source';
 
 const BASE = '/api/v1';
 
@@ -24,8 +28,8 @@ export class HttpDeviceDataSource implements DeviceDataSource {
     return `${this.baseUrl}${BASE}${path}`;
   }
 
-  private async get<T>(path: string): Promise<T> {
-    const res = await fetch(this.url(path));
+  private async get<T>(path: string, init?: RequestInit): Promise<T> {
+    const res = await fetch(this.url(path), init);
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${path}`);
     return res.json();
   }
@@ -41,7 +45,16 @@ export class HttpDeviceDataSource implements DeviceDataSource {
   }
 
   async getDevices(): Promise<Device[]> {
-    return this.get<Device[]>('/devices');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+      return await this.get<Device[]>('/devices', {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async getDevice(id: string): Promise<Device | undefined> {
@@ -56,6 +69,7 @@ export class HttpDeviceDataSource implements DeviceDataSource {
     deviceId: string,
     metric: string,
     query: HistoryQuery,
+    options?: HistoryRequestOptions,
   ): Promise<HistoricalPoint[]> {
     const params = new URLSearchParams({ metric });
     if (query.kind === 'absolute') {
@@ -64,9 +78,22 @@ export class HttpDeviceDataSource implements DeviceDataSource {
     } else {
       params.set('range', query.range);
     }
-    return this.get<HistoricalPoint[]>(
-      `/devices/${encodeURIComponent(deviceId)}/history?${params}`,
-    );
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (options?.signal?.aborted) controller.abort();
+    options?.signal?.addEventListener('abort', abort, { once: true });
+    const timeout = setTimeout(abort, 15000);
+    try {
+      const points = await this.get<HistoricalPoint[]>(
+        `/devices/${encodeURIComponent(deviceId)}/history?${params}`,
+        { signal: controller.signal, cache: 'no-store' },
+      );
+      if (!Array.isArray(points)) throw new Error('Invalid history response');
+      return points;
+    } finally {
+      clearTimeout(timeout);
+      options?.signal?.removeEventListener('abort', abort);
+    }
   }
 
   async getScene(): Promise<FactoryScene> {

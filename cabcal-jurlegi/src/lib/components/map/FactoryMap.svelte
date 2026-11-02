@@ -993,15 +993,17 @@
     cursor: pointer;
   }
 
-  /* 汉字宋体/仿宋风格 */
+  /* 汉字：优先 IBM Plex Sans SC，机器未装时回退宋体 */
   .serif-cn {
-    font-family: 'SimSun', 'Songti SC', 'STSong', 'KaiTi', 'SimHei', serif;
+    font-family: 'IBM Plex Sans SC', 'SimSun', 'Songti SC', 'STSong', 'KaiTi',
+      'SimHei', sans-serif;
     letter-spacing: 2px;
   }
 
-  /* 英文/代号 Times New Roman 衬线风格 */
+  /* 英文/代号：优先 IBM Plex Sans SC，回退 Times New Roman 衬线 */
   .serif-en {
-    font-family: 'Times New Roman', 'Georgia', 'SimSun', serif;
+    font-family: 'IBM Plex Sans SC', 'Times New Roman', 'Georgia', 'SimSun',
+      sans-serif;
     letter-spacing: 1px;
   }
 

@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
-    "test:maps": "node scripts/test-floorplans.mjs"
+    "test:maps": "node scripts/test-floorplans.mjs",
+    "test:history": "node scripts/test-floorplans.mjs tests/history-batches.test.ts"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
