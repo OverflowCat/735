@@ -19,7 +19,14 @@
   let chartEl = $state<HTMLDivElement | null>(null);
   let chart: echarts.ECharts | null = null;
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+  const COLORS = [
+    '#78a9ff',
+    '#3ddbd9',
+    '#f1c21b',
+    '#ff8389',
+    '#be95ff',
+    '#ff7eb6',
+  ];
 
   function buildOption() {
     // Show dates when the window spans more than ~2 days.
@@ -40,7 +47,7 @@
       grid: { top: 42, right: 16, bottom: 28, left: 56 },
       legend: {
         data: series.map((s) => s.name),
-        textStyle: { color: '#c4ced8', fontSize: 14, fontWeight: 600 },
+        textStyle: { color: '#c6c6c6', fontSize: 14, fontWeight: 600 },
         top: 4,
         itemWidth: 18,
         itemHeight: 10,
@@ -48,30 +55,32 @@
       xAxis: {
         type: 'time',
         axisLabel: {
-          color: '#b8c4d0',
+          color: '#c6c6c6',
           fontSize: 13,
           formatter: (v: number) => {
             const d = new Date(v);
             const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-            return showDate ? `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${hm}` : hm;
+            return showDate
+              ? `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${hm}`
+              : hm;
           },
         },
-        axisLine: { lineStyle: { color: '#4a5a6c' } },
+        axisLine: { lineStyle: { color: '#525252' } },
         splitLine: { show: false },
       },
       yAxis: {
         type: 'value',
         name: unit,
-        nameTextStyle: { color: '#b8c4d0', fontSize: 13 },
-        axisLabel: { color: '#b8c4d0', fontSize: 13 },
-        axisLine: { lineStyle: { color: '#4a5a6c' } },
-        splitLine: { lineStyle: { color: '#2d3a48' } },
+        nameTextStyle: { color: '#c6c6c6', fontSize: 13 },
+        axisLabel: { color: '#c6c6c6', fontSize: 13 },
+        axisLine: { lineStyle: { color: '#525252' } },
+        splitLine: { lineStyle: { color: '#525252' } },
       },
       tooltip: {
         trigger: 'axis',
-        backgroundColor: '#1a2028',
-        borderColor: '#4a5a6c',
-        textStyle: { color: '#f0f4f8', fontSize: 14 },
+        backgroundColor: '#393939',
+        borderColor: '#525252',
+        textStyle: { color: '#f4f4f4', fontSize: 14 },
       },
       series: series.map((s, i) => ({
         name: s.name,

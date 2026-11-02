@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { mapTheme } from '../map/map-theme';
   import { onMount } from 'svelte';
   import * as THREE from 'three';
   import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -24,16 +25,16 @@
   }
 
   function statusColor(status: string): number {
-    if (status === 'online') return 0x10b981;
-    if (status === 'offline') return 0x6b7280;
-    return 0xef4444;
+    if (status === 'online') return 0x42be65;
+    if (status === 'offline') return 0xa8a8a8;
+    return 0xff8389;
   }
 
   function alarmColor(device: Device): number {
     const alarms = device.alarms ?? [];
-    if (alarms.length === 0) return 0x223322;
+    if (alarms.length === 0) return 0x393939;
     const maxLevel = Math.max(...alarms.map((a) => a.level));
-    return maxLevel === 2 ? 0xef4444 : 0xf59e0b;
+    return maxLevel === 2 ? 0xff8389 : 0xf1c21b;
   }
 
   function formatMetricValue(v: number): string {
@@ -55,13 +56,6 @@
 
   function parseHexColor(hexStr?: string, fallback = 0x475569): number {
     if (!hexStr) return fallback;
-    if (hexStr.startsWith('url(')) {
-      if (hexStr.includes('c19')) return 0xb7b626;
-      if (hexStr.includes('c35')) return 0x7b8087;
-      if (hexStr.includes('c3')) return 0xbf923a;
-      if (hexStr.includes('filter')) return 0x3494a5;
-      if (hexStr.includes('hydromet')) return 0x8a998a;
-    }
     try {
       return new THREE.Color(hexStr).getHex();
     } catch {
@@ -114,10 +108,8 @@
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const r = 10;
-    ctx.fillStyle = alarm
-      ? 'rgba(127, 29, 29, 0.92)'
-      : 'rgba(15, 40, 18, 0.88)';
-    ctx.strokeStyle = alarm ? '#fca5a5' : '#c6ed56';
+    ctx.fillStyle = alarm ? 'rgba(127, 29, 29, 0.92)' : '#262626';
+    ctx.strokeStyle = alarm ? mapTheme.danger : mapTheme.accent;
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(r, 2);
@@ -132,7 +124,7 @@
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = alarm ? '#fee2e2' : '#ecfccb';
+    ctx.fillStyle = mapTheme.text;
     ctx.fillText(text, w / 2, h / 2 + 1);
 
     const texture = new THREE.CanvasTexture(canvas);
@@ -154,9 +146,7 @@
       const mesh = obj as THREE.Mesh;
       if (mesh.geometry) mesh.geometry.dispose();
       const mat = mesh.material as
-        | THREE.Material
-        | THREE.Material[]
-        | undefined;
+        THREE.Material | THREE.Material[] | undefined;
       if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
       else mat?.dispose();
     });
@@ -206,12 +196,16 @@
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
     dirLight.position.set(400, 700, 300);
     root.add(dirLight);
-    const fillLight = new THREE.DirectionalLight(0xa5c49b, 0.4);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
     fillLight.position.set(-300, 400, -200);
     root.add(fillLight);
 
-    // 地面（与 2D 草地颜色 #77A56B 一致）
-    const groundColor = parseHexColor(appState.scene.backgroundColor, 0x77a56b);
+    // Match the SVG site palette while preserving indoor floorplan images.
+    const groundColor = parseHexColor(
+      appState.scene.backgroundImage
+        ? appState.scene.backgroundColor
+        : mapTheme.background,
+    );
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(
         appState.scene.width + 80,
@@ -248,7 +242,7 @@
     const objects = appState.scene.objects ?? [];
     for (const obj of objects) {
       const height = 45;
-      const mainColor = parseHexColor(obj.fill, 0x475569);
+      const mainColor = parseHexColor(mapTheme.building);
 
       if (obj.shape === 'polygon' && obj.points && obj.points.length >= 3) {
         const shape = new THREE.Shape();
@@ -410,7 +404,7 @@
       return;
     }
 
-    renderer.setClearColor(0x1e2e1a);
+    renderer.setClearColor(0x161616);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     containerEl.appendChild(renderer.domElement);
     applyCameraSize();
@@ -510,7 +504,7 @@
     min-height: 0;
     position: relative;
     overflow: hidden;
-    background: #1e2e1a;
+    background: #161616;
     cursor: grab;
   }
 
@@ -530,8 +524,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #f3ffd0;
-    background: #1e2e1a;
+    color: #f4f4f4;
+    background: #161616;
     font-size: 15px;
     pointer-events: none;
   }

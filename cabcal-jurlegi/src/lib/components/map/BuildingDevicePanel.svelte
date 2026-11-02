@@ -1,4 +1,9 @@
 <script lang="ts">
+  import DragVertical from 'carbon-icons-svelte/lib/DragVertical.svelte';
+  import ArrowRight from 'carbon-icons-svelte/lib/ArrowRight.svelte';
+
+  import { Button } from 'carbon-components-svelte';
+  import Renew from 'carbon-icons-svelte/lib/Renew.svelte';
   import { untrack } from 'svelte';
   import {
     appState,
@@ -139,18 +144,19 @@
       onpointercancel={endDrag}
       onkeydown={nudge}
     >
-      <span class="grip" aria-hidden="true">⠿</span><strong>{name}</strong
-      ><small>{count} 台设备</small>
+      <span class="grip" aria-hidden="true"><DragVertical size={20} /></span
+      ><strong>{name}</strong><small>{count} 台设备</small>
     </button>
-    <button
-      class="reset-position"
-      title="恢复窗口位置"
-      aria-label={`恢复${name}设备列表位置`}
-      onclick={() => {
+    <Button
+      kind="ghost"
+      size="small"
+      icon={Renew}
+      iconDescription={`恢复${name}设备列表位置`}
+      on:click={() => {
         offset = { x: 0, y: 0 };
         persist();
-      }}>↺</button
-    >
+      }}
+    />
   </header>
   <div
     class="device-scroll"
@@ -161,17 +167,22 @@
       <div class="floor-heading">
         <span>{group.map.floor ? `${group.map.floor} 楼` : group.map.name}</span
         >
-        <button onclick={() => switchMap(group.map.id)}>查看平面图 →</button>
+        <Button
+          kind="ghost"
+          size="small"
+          icon={ArrowRight}
+          on:click={() => switchMap(group.map.id)}>查看平面图</Button
+        >
       </div>
       {#each group.devices as device (device.id)}
         {@const metric = device.metrics[0]}
         {@const level = Math.max(0, ...device.alarms.map((a) => a.level))}
-        <button
-          class="device-row"
-          class:selected={appState.selectedDeviceId === device.id}
-          class:alarm={level > 0}
+        <Button
+          kind="ghost"
+          size="small"
+          class={`device-row ${appState.selectedDeviceId === device.id ? 'selected' : ''} ${level > 0 ? 'alarm' : ''}`}
           data-panel-device={device.id}
-          onclick={() => selectDevice(device.id)}
+          on:click={() => selectDevice(device.id)}
           title={`${device.name} · ${deviceSn(device)}`}
         >
           <span class="device-info">
@@ -196,7 +207,7 @@
                 (device.type === 'gamma' ? 'nGy/h' : 'Bq/m³')}</small
             >
           </span>
-        </button>
+        </Button>
       {/each}
     {/each}
   </div>
@@ -209,20 +220,20 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid #658073;
-    border-radius: 9px;
-    background: rgba(15, 28, 31, 0.96);
-    box-shadow: 0 8px 28px #14271855;
-    color: #e2e8f0;
+    border: 1px solid #525252;
+    border-radius: 0;
+    background: #262626;
+    box-shadow: 0 8px 28px #00000055;
+    color: #f4f4f4;
   }
   .dragging {
-    box-shadow: 0 12px 35px #14271888;
+    box-shadow: 0 12px 35px #00000088;
   }
   header {
     display: flex;
     flex-shrink: 0;
     border-bottom: 1px solid #ffffff20;
-    background: #203837;
+    background: #262626;
   }
   .drag-handle {
     flex: 1;
@@ -233,7 +244,7 @@
     border: 0;
     border-radius: 0;
     background: transparent;
-    color: #f1f5f9;
+    color: #f4f4f4;
     padding: 10px;
     cursor: grab;
     touch-action: none;
@@ -243,7 +254,7 @@
     cursor: grabbing;
   }
   .grip {
-    color: #a1b6b1;
+    color: #a8a8a8;
     font-size: 21px;
     line-height: 1;
   }
@@ -253,14 +264,7 @@
   .drag-handle small {
     margin-left: auto;
     font-size: 11px;
-    color: #abc2b7;
-  }
-  .reset-position {
-    background: transparent;
-    border: 0;
-    color: #cbd5e1;
-    padding: 7px 12px;
-    border-radius: 0;
+    color: #a8a8a8;
   }
   .device-scroll {
     overflow-y: auto;
@@ -268,7 +272,7 @@
     min-height: 0;
     flex: 1;
     scrollbar-width: thin;
-    scrollbar-color: #769388 #172b2b;
+    scrollbar-color: #6f6f6f #262626;
   }
   .floor-heading {
     display: flex;
@@ -278,38 +282,38 @@
     top: 0;
     z-index: 1;
     padding: 6px 12px;
-    background: #29403e;
-    color: #b2c8ba;
+    background: #393939;
+    color: #c6c6c6;
     font-size: 11px;
   }
-  .floor-heading button {
-    padding: 0;
-    background: transparent;
-    border: 0;
-    color: #c4ded4;
+  .floor-heading :global(.bx--btn) {
+    padding: 0 32px 0 8px;
+    min-height: 24px;
     font-size: 11px;
   }
-  .device-row {
+  :global(.device-row) {
     display: flex;
     align-items: center;
     justify-content: space-between;
     width: 100%;
+    max-width: none;
+    min-height: 48px;
     gap: 10px;
     border: 0;
     border-bottom: 1px solid #ffffff0c;
     border-radius: 0;
     padding: 8px 12px;
     background: transparent;
-    color: #e2e8f0;
+    color: #f4f4f4;
     text-align: left;
   }
-  .device-row:hover,
-  .device-row.selected {
-    background: #33534e;
+  :global(.device-row:hover),
+  :global(.device-row.selected) {
+    background: #393939;
   }
-  .device-row.alarm {
-    color: #fbbf24;
-    border-left: 3px solid #f59e0b;
+  :global(.device-row.alarm) {
+    color: #f1c21b;
+    border-left: 3px solid #f1c21b;
   }
   .device-info {
     display: flex;
@@ -327,7 +331,7 @@
     opacity: 0.75;
   }
   .asset {
-    color: #9cb5ab;
+    color: #a8a8a8;
     font-size: 10px;
     font-family: var(--font-mono);
   }
@@ -338,7 +342,7 @@
     white-space: nowrap;
   }
   .reading small {
-    color: #a9bcb6;
+    color: #c6c6c6;
     font-size: 10px;
   }
 </style>

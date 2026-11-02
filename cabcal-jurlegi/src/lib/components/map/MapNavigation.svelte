@@ -1,4 +1,8 @@
 <script lang="ts">
+  import Map from 'carbon-icons-svelte/lib/Map.svelte';
+  import Building from 'carbon-icons-svelte/lib/Building.svelte';
+
+  import { Button, Tag } from 'carbon-components-svelte';
   import { appState, switchMap } from '../../state/app-state.svelte';
   import {
     buildings,
@@ -25,99 +29,91 @@
   }
 </script>
 
-<nav class="map-navigation" aria-label="区域选择">
-  <button
-    class:active={currentMap.id === 'site'}
-    aria-current={currentMap.id === 'site' ? 'page' : undefined}
-    onclick={() => switchMap('site')}>厂区总览</button
-  >
-  {#each buildings as building}
-    {@const summary = buildingSummary(building.id)}
-    <button
-      class:active={currentMap.building === building.id}
-      aria-current={currentMap.building === building.id ? 'page' : undefined}
-      title={`${building.name} · ${summary.count} 点位${summary.alarms ? ` · ${summary.alarms} 报警` : ''}`}
-      onclick={() => switchMap(building.mapId)}
+<div class="region-bar">
+  <nav class="map-navigation" aria-label="区域选择">
+    <Button
+      kind="ghost"
+      size="field"
+      icon={Map}
+      aria-current={currentMap.id === 'site' ? 'page' : undefined}
+      on:click={() => switchMap('site')}>厂区总览</Button
     >
-      {building.name}<small
-        >{summary.count}<span class="sr-only"> 点位</span></small
+    {#each buildings as building}
+      {@const summary = buildingSummary(building.id)}
+      <Button
+        kind="ghost"
+        size="field"
+        aria-current={currentMap.building === building.id ? 'page' : undefined}
+        icon={Building}
+        title={`${building.name} · ${summary.count} 点位${summary.alarms ? ` · ${summary.alarms} 报警` : ''}`}
+        on:click={() => switchMap(building.mapId)}
       >
-      {#if summary.alarms}<span class="alarm-count">{summary.alarms} 报警</span
-        >{/if}
-    </button>
-  {/each}
-</nav>
-{#if floors.length > 0}
-  <div class="floor-tabs" role="group" aria-label="水冶厂楼层">
-    {#each floors as floor}
-      <button
-        class:active={floor.id === currentMap.id}
-        aria-pressed={floor.id === currentMap.id}
-        onclick={() => switchMap(floor.id)}>{floor.floor} 楼</button
-      >
+        {building.name}<span class="region-count"
+          >{summary.count}<span class="sr-only"> 点位</span></span
+        >
+        {#if summary.alarms}<Tag type="red" size="sm">{summary.alarms} 报警</Tag
+          >{/if}
+      </Button>
     {/each}
-  </div>
-{/if}
+  </nav>
+  {#if floors.length > 0}
+    <div class="floor-tabs" role="group" aria-label="水冶厂楼层">
+      {#each floors as floor}
+        <Button
+          size="small"
+          kind={floor.id === currentMap.id ? 'primary' : 'ghost'}
+          aria-pressed={floor.id === currentMap.id}
+          on:click={() => switchMap(floor.id)}>{floor.floor} 楼</Button
+        >
+      {/each}
+    </div>
+  {/if}
+</div>
 
 <style>
+  .region-bar {
+    display: flex;
+    min-height: 48px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    gap: 16px;
+    padding: 0 24px;
+  }
   .map-navigation {
     display: flex;
-    align-self: stretch;
     align-items: stretch;
-    gap: 2px;
-    min-width: 90px;
     flex: 1;
     overflow-x: auto;
-    scrollbar-width: thin;
+    min-width: 0;
   }
-  .map-navigation button {
-    position: relative;
+  .map-navigation :global(.bx--btn) {
+    color: var(--text-secondary);
+    padding: 0 40px 0 16px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    max-width: none;
+    min-height: 48px;
+    border-bottom: 2px solid transparent;
+  }
+  .map-navigation :global([aria-current='page']) {
+    border-bottom-color: #78a9ff;
+    color: #f4f4f4;
+    background: #393939;
+  }
+  .region-count {
+    margin-left: 8px;
+    color: var(--text-muted);
+    font: 12px var(--font-mono);
+  }
+  .floor-tabs {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 1px;
     flex-shrink: 0;
-    gap: 6px;
-    padding: 0 10px;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 13px;
-    white-space: nowrap;
   }
-  .map-navigation button:hover {
-    background: #ffffff06;
-    color: var(--text-primary);
-  }
-  .map-navigation button.active {
-    background: linear-gradient(0deg, #3b82f619, transparent);
-    color: #bfdbfe;
-    font-weight: 650;
-  }
-  .map-navigation button.active::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 10px;
-    right: 10px;
-    height: 3px;
-    border-radius: 3px 3px 0 0;
-    background: #60a5fa;
-  }
-  small {
-    padding: 0 5px;
-    border-radius: 4px;
-    background: #ffffff09;
-    color: var(--text-muted);
-    font: 10px/18px var(--font-mono);
-  }
-  .active small {
-    background: #60a5fa20;
-    color: #bfdbfe;
-  }
-  .alarm-count {
-    color: #fbbf24;
-    font-size: 10px;
+  .floor-tabs :global(.bx--btn) {
+    padding: 0 12px;
   }
   .sr-only {
     position: absolute;
@@ -127,34 +123,14 @@
     clip-path: inset(50%);
     white-space: nowrap;
   }
-  .floor-tabs {
-    display: flex;
-    flex-shrink: 0;
-    gap: 2px;
-    padding: 3px;
-    background: var(--bg-primary);
-    border: 1px solid #ffffff12;
-    border-radius: 6px;
-  }
-  .floor-tabs button {
-    padding: 3px 7px;
-    border: 0;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 12px;
-    white-space: nowrap;
-  }
-  .floor-tabs button.active {
-    background: #334155;
-    color: var(--text-primary);
-  }
-  @media (max-width: 1250px) {
-    small {
-      display: none;
+  @media (max-width: 900px) {
+    .region-bar {
+      padding: 0 12px;
+      gap: 8px;
+      flex-wrap: wrap;
     }
-    .map-navigation button {
-      padding: 0 9px;
+    .floor-tabs {
+      margin-bottom: 8px;
     }
   }
 </style>

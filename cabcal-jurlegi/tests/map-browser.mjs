@@ -226,13 +226,13 @@ try {
   if (process.env.MAP_SCREENSHOT)
     await page.screenshot({ path: process.env.MAP_SCREENSHOT });
   await floor(4);
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('tab', { name: '3D', exact: true }).click();
   await page.locator('.three-container canvas').waitFor();
   await page.waitForTimeout(800);
   assert.equal(await page.locator('.three-error').count(), 0);
-  await page.getByRole('button', { name: '2D', exact: true }).click();
+  await page.getByRole('tab', { name: '2D', exact: true }).click();
   assert.equal(await page.locator('[data-device]').count(), 1);
-  await page.getByRole('button', { name: '监测总览', exact: true }).click();
+  await page.getByRole('menuitem', { name: '监测总览', exact: true }).click();
   assert.match(await page.locator('.summary-row').innerText(), /39\s*未上报/);
   await page.locator('.search-input').fill('gamma_12');
   assert.equal(await page.locator('tbody tr').count(), 1);

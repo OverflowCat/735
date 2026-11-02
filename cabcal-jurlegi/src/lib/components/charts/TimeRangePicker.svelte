@@ -1,4 +1,7 @@
 <script lang="ts">
+  import Calendar from 'carbon-icons-svelte/lib/Calendar.svelte';
+
+  import { Button, TextInput } from 'carbon-components-svelte';
   import {
     TIME_RANGE_LABELS,
     relativeQuery,
@@ -45,37 +48,49 @@
   function applyCustom() {
     const startMs = new Date(custom.start).getTime();
     const endMs = new Date(custom.end).getTime();
-    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || startMs > endMs) return;
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || startMs > endMs)
+      return;
     onchange(absoluteQuery(startMs, endMs));
   }
 
-  const activeRelative = $derived(query.kind === 'relative' ? query.range : null);
+  const activeRelative = $derived(
+    query.kind === 'relative' ? query.range : null,
+  );
 </script>
 
 <div class="range-picker">
-  <div class="preset-row">
+  <div class="preset-row" role="group" aria-label="历史时间范围">
     {#each Object.entries(TIME_RANGE_LABELS) as [key, label]}
-      <button
-        class:active={!customMode && activeRelative === key}
-        class="small"
-        onclick={() => pickRelative(key as TimeRange)}
+      <Button
+        size="small"
+        kind={!customMode && activeRelative === key ? 'primary' : 'ghost'}
+        aria-pressed={!customMode && activeRelative === key}
+        on:click={() => pickRelative(key as TimeRange)}>{label}</Button
       >
-        {label}
-      </button>
     {/each}
-    <button class:active={customMode} class="small" onclick={enterCustom}>自定义</button>
+    <Button
+      size="small"
+      kind={customMode ? 'primary' : 'ghost'}
+      icon={Calendar}
+      aria-pressed={customMode}
+      on:click={enterCustom}>自定义</Button
+    >
   </div>
   {#if customMode}
     <div class="custom-row">
-      <label>
-        <span>开始</span>
-        <input type="datetime-local" bind:value={custom.start} />
-      </label>
-      <label>
-        <span>结束</span>
-        <input type="datetime-local" bind:value={custom.end} />
-      </label>
-      <button class="small primary" onclick={applyCustom}>查询</button>
+      <TextInput
+        type="datetime-local"
+        labelText="开始"
+        size="sm"
+        bind:value={custom.start}
+      />
+      <TextInput
+        type="datetime-local"
+        labelText="结束"
+        size="sm"
+        bind:value={custom.end}
+      />
+      <Button size="small" on:click={applyCustom}>查询</Button>
     </div>
   {/if}
 </div>
@@ -84,68 +99,27 @@
   .range-picker {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 16px;
   }
-
   .preset-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 1px;
   }
-
+  .preset-row :global(.bx--btn) {
+    padding: 0 12px;
+  }
+  .preset-row :global(.bx--btn:has(.bx--btn__icon)) {
+    padding-right: 36px;
+  }
   .custom-row {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
-    gap: 8px;
+    gap: 12px;
   }
-
-  .custom-row label {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: 13px;
-    color: var(--text-secondary);
-  }
-
-  .custom-row input {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text-primary);
-    font-size: 14px;
-    padding: 4px 6px;
-    font-family: var(--font-mono);
-  }
-
-  button.small {
-    padding: 4px 10px;
-    font-size: 14px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    background: var(--bg-card);
-    color: var(--text-secondary);
-    cursor: pointer;
-  }
-
-  button.small:hover {
-    color: var(--text-primary);
-    border-color: var(--text-secondary);
-  }
-
-  button.small.active {
-    background: var(--accent, #3b82f6);
-    border-color: var(--accent, #3b82f6);
-    color: #fff;
-  }
-
-  button.small.primary {
-    background: var(--accent, #3b82f6);
-    border-color: var(--accent, #3b82f6);
-    color: #fff;
-  }
-
-  button.small.primary:hover {
-    opacity: 0.9;
+  .custom-row :global(.bx--form-item) {
+    flex: 1;
+    min-width: 150px;
   }
 </style>

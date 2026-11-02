@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { mapTheme } from './map-theme';
+  import { Button, Tag } from 'carbon-components-svelte';
+  import FitToScreen from 'carbon-icons-svelte/lib/FitToScreen.svelte';
   import { untrack } from 'svelte';
   import {
     appState,
@@ -86,16 +89,16 @@
   }
 
   function statusColor(status: string): string {
-    if (status === 'online') return '#10b981';
-    if (status === 'offline') return '#6b7280';
-    return '#ef4444';
+    if (status === 'online') return mapTheme.online;
+    if (status === 'offline') return mapTheme.offline;
+    return mapTheme.danger;
   }
 
   function alarmColor(device: Device): string {
     const alarms = device.alarms ?? [];
     if (alarms.length === 0) return '';
     const maxLevel = Math.max(...alarms.map((a) => a.level));
-    return maxLevel === 2 ? '#ef4444' : '#f59e0b';
+    return maxLevel === 2 ? mapTheme.danger : mapTheme.warning;
   }
 
   function formatMetricValue(v: number): string {
@@ -370,15 +373,21 @@
   class:floorplan={isFloorplan}
   class:edit-mode={appState.editMode}
 >
-  <button class="fit-view" onclick={resetView} title="显示完整平面图"
-    >适应画面</button
-  >
+  <div class="fit-view">
+    <Button
+      kind="secondary"
+      size="small"
+      icon={FitToScreen}
+      on:click={resetView}
+      title="显示完整平面图">适应画面</Button
+    >
+  </div>
   {#if imageFailed}<div class="image-error" role="alert">
       平面图加载失败，请刷新重试
     </div>{/if}
   {#if appState.editMode}
     <div class="edit-toolbar">
-      <span class="edit-label">编辑模式</span>
+      <Tag type="blue" size="sm">编辑模式</Tag>
       {#if placingDevice}
         <span class="placing-hint">
           点击地图放置「{deviceById(placingDevice)
@@ -414,77 +423,19 @@
           dx="3"
           dy="6"
           stdDeviation="4"
-          flood-color="#1e3318"
+          flood-color="#000000"
           flood-opacity="0.4"
         />
       </filter>
-
-      <!-- 1. C19 黄色金弧立体立面渐变 -->
-      <linearGradient
-        id="c19-facade-gradient"
-        x1="0%"
-        y1="0%"
-        x2="0%"
-        y2="100%"
-      >
-        <stop offset="0%" stop-color="#DCD640" />
-        <stop offset="45%" stop-color="#BEB928" />
-        <stop offset="100%" stop-color="#8E891C" />
-      </linearGradient>
-
-      <!-- 2. C35 银灰色立体立面渐变 -->
-      <linearGradient
-        id="c35-facade-gradient"
-        x1="0%"
-        y1="0%"
-        x2="0%"
-        y2="100%"
-      >
-        <stop offset="0%" stop-color="#9AA0A8" />
-        <stop offset="60%" stop-color="#7B8087" />
-        <stop offset="100%" stop-color="#5E636A" />
-      </linearGradient>
-
-      <!-- 3. C3 深琥珀棕立面渐变 -->
-      <linearGradient id="c3-facade-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="#CE9F3E" />
-        <stop offset="100%" stop-color="#9C7326" />
-      </linearGradient>
-
-      <!-- 4. 集中过滤厂房 青湖蓝立面渐变 -->
-      <linearGradient
-        id="filter-facade-gradient"
-        x1="0%"
-        y1="0%"
-        x2="0%"
-        y2="100%"
-      >
-        <stop offset="0%" stop-color="#46A7B8" />
-        <stop offset="50%" stop-color="#3494A5" />
-        <stop offset="100%" stop-color="#216D7C" />
-      </linearGradient>
-
-      <!-- 5. 水冶厂 银冷青灰立面渐变 -->
-      <linearGradient
-        id="hydromet-facade-gradient"
-        x1="0%"
-        y1="0%"
-        x2="0%"
-        y2="100%"
-      >
-        <stop offset="0%" stop-color="#A4B3A4" />
-        <stop offset="60%" stop-color="#8A998A" />
-        <stop offset="100%" stop-color="#6F7D6F" />
-      </linearGradient>
     </defs>
 
-    <!-- 厂区草地底板（精准采样 #77A56B） -->
+    <!-- Use Carbon neutrals for the site; keep authored indoor floorplans intact. -->
     <rect
       x="0"
       y="0"
       width={appState.scene.width || 1200}
       height={appState.scene.height || 800}
-      fill={appState.scene.backgroundColor || '#77A56B'}
+      fill={isFloorplan ? appState.scene.backgroundColor : mapTheme.background}
     />
 
     <!-- 编辑网格 -->
@@ -520,7 +471,7 @@
       width={(appState.scene.width || 1200) - 4}
       height={(appState.scene.height || 800) - 4}
       fill="none"
-      stroke={isFloorplan ? '#cbd5e1' : '#5A8050'}
+      stroke={isFloorplan ? '#cbd5e1' : mapTheme.border}
       stroke-width="3"
     />
 
@@ -546,8 +497,8 @@
           {#if obj.frontPoints}
             <polygon
               points={pointsToString(obj.frontPoints)}
-              fill={obj.facadeFill || '#7B8087'}
-              stroke={obj.stroke || 'rgba(0,0,0,0.35)'}
+              fill={mapTheme.facade}
+              stroke={mapTheme.border}
               stroke-width="1.2"
             />
           {/if}
@@ -555,8 +506,8 @@
           <!-- 多边形顶面 -->
           <polygon
             points={pointsToString(obj.points)}
-            fill={obj.fill || '#4A4C4D'}
-            stroke={obj.stroke || 'rgba(0,0,0,0.4)'}
+            fill={mapTheme.building}
+            stroke={mapTheme.border}
             stroke-width="1.5"
           />
         {:else if obj.x !== undefined && obj.y !== undefined && obj.width && obj.height}
@@ -567,8 +518,8 @@
               y={obj.y + obj.height}
               width={obj.width}
               height={obj.facadeHeight}
-              fill={obj.facadeFill}
-              stroke={obj.stroke || 'rgba(0,0,0,0.3)'}
+              fill={mapTheme.facade}
+              stroke={mapTheme.border}
               stroke-width="1.2"
               rx="1"
             />
@@ -580,14 +531,14 @@
             y={obj.y}
             width={obj.width}
             height={obj.height}
-            fill={obj.fill || '#3a4a5c'}
-            stroke={obj.stroke || 'rgba(0,0,0,0.35)'}
+            fill={mapTheme.building}
+            stroke={mapTheme.border}
             stroke-width="1.5"
             rx="1"
           />
         {/if}
 
-        <!-- 厂房标牌字体（汉字宋体/仿宋，英文Times/衬线，完全还原原图风格） -->
+        <!-- Building labels share Carbon typography. -->
         <text
           x={obj.labelX ??
             (obj.x !== undefined && obj.width ? obj.x + obj.width / 2 : 0)}
@@ -595,7 +546,7 @@
             (obj.y !== undefined && obj.height ? obj.y + obj.height / 2 : 0)}
           text-anchor="middle"
           dominant-baseline="central"
-          fill={obj.labelColor || '#ffffff'}
+          fill={mapTheme.text}
           font-size={obj.labelFontSize || 28}
           font-weight="bold"
           class="building-title"
@@ -662,7 +613,7 @@
               <rect
                 width="140"
                 height={placement.labelStyle === 'compact' ? 27 : 48}
-                rx="5"
+                rx="0"
                 fill={isSel ? '#e0f2fe' : '#ffffff'}
                 stroke={isSel ? '#0284c7' : alarm || '#94a3b8'}
                 stroke-width={alarm || isSel ? 2 : 1}
@@ -704,15 +655,15 @@
                 y="-19"
                 width="98"
                 height="40"
-                rx="5"
-                fill="rgba(18, 37, 29, .92)"
+                rx="0"
+                fill="#161616"
                 stroke={alarm || statusColor(device.status)}
                 stroke-width="1.5"
               />
               <text
                 y="-4"
                 text-anchor="middle"
-                fill="#f0fdf4"
+                fill="#f4f4f4"
                 font-size="12"
                 font-weight="700"
                 >{shortLabel(device)}
@@ -727,7 +678,7 @@
               <text
                 y="12"
                 text-anchor="middle"
-                fill={alarm || '#dcfce7'}
+                fill={alarm || '#c6c6c6'}
                 font-size="11"
                 >{device.unreported
                   ? '— 暂无数据'
@@ -910,8 +861,6 @@
     top: 12px;
     z-index: 10;
     font-size: 12px;
-    background: #0f172a;
-    color: #e2e8f0;
   }
   .image-error {
     position: absolute;
@@ -951,7 +900,7 @@
     flex: 1;
     position: relative;
     overflow: hidden;
-    background: #658c5a;
+    background: var(--bg-secondary);
     display: flex;
     min-width: 0;
   }
@@ -976,20 +925,18 @@
     cursor: pointer;
   }
 
-  /* 汉字：优先 IBM Plex Sans SC，机器未装时回退宋体 */
-  .serif-cn {
-    font-family: 'IBM Plex Sans SC', 'SimSun', 'Songti SC', 'STSong', 'KaiTi',
-      'SimHei', sans-serif;
-    letter-spacing: 2px;
-  }
-
-  /* 英文/代号：优先 IBM Plex Sans SC，回退 Times New Roman 衬线 */
+  .serif-cn,
   .serif-en {
-    font-family: 'IBM Plex Sans SC', 'Times New Roman', 'Georgia', 'SimSun',
-      sans-serif;
+    font-family: var(--font-sans);
     letter-spacing: 1px;
   }
-
+  .building-group:hover > polygon,
+  .building-group:hover > rect,
+  .building-group:focus-visible > polygon,
+  .building-group:focus-visible > rect {
+    stroke: #78a9ff;
+    stroke-width: 2;
+  }
   .building-title {
     pointer-events: none;
     user-select: none;
@@ -1088,27 +1035,17 @@
     align-items: center;
     gap: 10px;
     padding: 8px 14px;
-    background: rgba(15, 23, 42, 0.9);
-    backdrop-filter: blur(8px);
+    background: #262626;
     border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 8px;
+    border-radius: 0;
     color: #fff;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     pointer-events: none;
   }
 
-  .edit-label {
-    font-size: 14px;
-    font-weight: 600;
-    color: #38bdf8;
-    padding: 2px 8px;
-    border: 1px solid #38bdf8;
-    border-radius: 4px;
-  }
-
   .placing-hint {
     font-size: 13px;
-    color: #f59e0b;
+    color: var(--warning);
   }
 
   .coord-readout {
@@ -1118,7 +1055,7 @@
     z-index: 5;
     padding: 4px 10px;
     border-radius: 4px;
-    background: rgba(15, 23, 42, 0.75);
+    background: #262626;
     color: #94a3b8;
     font-size: 12px;
     font-family: 'Courier New', monospace;

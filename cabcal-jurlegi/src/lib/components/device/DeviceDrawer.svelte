@@ -1,4 +1,21 @@
 <script lang="ts">
+  import Activity from 'carbon-icons-svelte/lib/Activity.svelte';
+  import ChartLine from 'carbon-icons-svelte/lib/ChartLine.svelte';
+  import WarningFilled from 'carbon-icons-svelte/lib/WarningFilled.svelte';
+  import CheckmarkFilled from 'carbon-icons-svelte/lib/CheckmarkFilled.svelte';
+  import ErrorFilled from 'carbon-icons-svelte/lib/ErrorFilled.svelte';
+  import WifiOff from 'carbon-icons-svelte/lib/WifiOff.svelte';
+  import Time from 'carbon-icons-svelte/lib/Time.svelte';
+  import Information from 'carbon-icons-svelte/lib/Information.svelte';
+  import Chemistry from 'carbon-icons-svelte/lib/Chemistry.svelte';
+
+  import {
+    Button,
+    Tag,
+    Tile,
+    InlineNotification,
+  } from 'carbon-components-svelte';
+  import Close from 'carbon-icons-svelte/lib/Close.svelte';
   import { untrack } from 'svelte';
   import {
     appState,
@@ -15,8 +32,7 @@
 
   const device = $derived(
     appState.devices.find((d) => d.id === appState.selectedDeviceId) as
-      | Device
-      | undefined,
+      Device | undefined,
   );
   let historyQuery = $state<HistoryQuery>(relativeQuery('1h'));
   let history = $state<HistoricalPoint[]>([]);
@@ -96,101 +112,125 @@
   }
 </script>
 
-{#if device}
-  <aside class="drawer">
-    <div class="drawer-header">
-      <h3>
-        <span class="title-sn">{deviceSn(device)}</span>
-        <span class="title-name">{device.name}</span>
-      </h3>
-      <button class="close-btn" onclick={close}>✕</button>
-    </div>
+<svelte:window
+  onkeydown={(e) => {
+    if (e.key === 'Escape' && device) close();
+  }}
+/>
 
+{#if device}
+  <aside class="drawer" aria-label={`设备详情 ${deviceSn(device)}`}>
+    <div class="drawer-header">
+      <div>
+        <p class="eyebrow">设备详情</p>
+        <h2 class="title-sn">{deviceSn(device)}</h2>
+        <p class="title-name">{device.name}</p>
+      </div>
+      <Button
+        class="close-btn"
+        kind="ghost"
+        size="small"
+        icon={Close}
+        iconDescription="关闭设备详情"
+        on:click={close}
+      />
+    </div>
     <div class="drawer-body">
-      <section class="info-section">
+      <section class="info-section" aria-label="设备信息">
         <div class="info-row">
-          <span class="info-label">设备编号</span>
-          <span class="info-value mono">{device.id}</span>
+          <span class="info-label"><Information size={16} />设备编号</span><span
+            class="info-value mono">{device.id}</span
+          >
         </div>
         <div class="info-row">
-          <span class="info-label">设备类型</span>
-          <span class="info-value">{typeLabel(device.type)}</span>
+          <span class="info-label"
+            >{#if device.type === 'gamma'}<Activity
+                size={16}
+              />{:else}<Chemistry size={16} />{/if}设备类型</span
+          ><span class="info-value">{typeLabel(device.type)}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">设备状态</span>
-          <span class="badge {device.status}">
-            {deviceStatusLabel(device)}
-          </span>
+          <span class="info-label"><CheckmarkFilled size={16} />设备状态</span
+          ><Tag
+            icon={device.status === 'online'
+              ? CheckmarkFilled
+              : device.status === 'fault'
+                ? ErrorFilled
+                : device.unreported
+                  ? Time
+                  : WifiOff}
+            type={device.status === 'online'
+              ? 'green'
+              : device.status === 'fault'
+                ? 'red'
+                : 'gray'}
+            size="sm">{deviceStatusLabel(device)}</Tag
+          >
         </div>
         <div class="info-row">
-          <span class="info-label">最后更新</span>
-          <span class="info-value"
+          <span class="info-label"><Time size={16} />最后更新</span><span
+            class="info-value"
             >{device.lastUpdate
               ? new Date(device.lastUpdate).toLocaleString('zh-CN')
               : '暂无上报'}</span
           >
         </div>
       </section>
-
       <section class="section">
-        <h4>实时监测数据</h4>
-        {#if device.metrics.length === 0}
-          <p class="empty-data">已登记安装位置，暂无上报数据。</p>
-        {/if}
+        <h3><Activity size={16} />实时监测数据</h3>
+        {#if device.metrics.length === 0}<InlineNotification
+            kind="info"
+            title="暂无上报数据"
+            subtitle="已登记安装位置，等待设备上报。"
+            hideCloseButton
+            lowContrast
+          />{/if}
         {#each device.metrics as m}
-          <div class="metric-card" class:alarm={m.alarm !== false}>
+          <Tile class="metric-card">
             <div class="metric-header">
-              <span class="metric-name">{m.name}</span>
-              {#if m.alarm !== false}
-                <span class="badge alarm-l{m.alarm.level}"
-                  >{alarmLabel(m.alarm.level)}</span
-                >
-              {/if}
+              <span>{m.name}</span>
+              {#if m.alarm !== false}<Tag
+                  type={m.alarm.level === 2 ? 'red' : 'magenta'}
+                  size="sm">{alarmLabel(m.alarm.level)}</Tag
+                >{/if}
             </div>
             <div
               class="metric-value"
               class:alarm-l2={m.alarm !== false && m.alarm.level === 2}
               class:alarm-l1={m.alarm !== false && m.alarm.level === 1}
             >
-              {m.value.toFixed(1)}
-              <span class="metric-unit">{m.unit}</span>
+              {m.value.toFixed(1)} <span class="metric-unit">{m.unit}</span>
             </div>
             {#if m.alarm !== false}
               <div class="alarm-info">
-                <p>原因: {m.alarm.reason}</p>
+                <p>原因：{m.alarm.reason}</p>
                 <p>
-                  阈值: {m.alarm.threshold.low} ~ {m.alarm.threshold.up}
+                  阈值：{m.alarm.threshold.low} ~ {m.alarm.threshold.up}
                   {m.unit}
                 </p>
-                {#if m.alarm.action}
-                  <p>
-                    联动动作: {m.alarm.action === 'vent_start'
+                {#if m.alarm.action}<p>
+                    联动动作：{m.alarm.action === 'vent_start'
                       ? '启动通风'
                       : m.alarm.action}
-                  </p>
-                {/if}
+                  </p>{/if}
               </div>
             {/if}
-          </div>
+          </Tile>
         {/each}
       </section>
-
       {#if device.alarms.length > 0}
         <section class="section">
-          <h4>报警信息</h4>
-          {#each device.alarms as alarm}
-            <div class="alarm-detail alarm-l{alarm.level}-bg">
-              <span class="badge alarm-l{alarm.level}"
-                >{alarmLabel(alarm.level)}</span
-              >
-              <p>{alarm.reason}</p>
-            </div>
-          {/each}
+          <h3><WarningFilled size={16} />报警信息</h3>
+          {#each device.alarms as alarm}<InlineNotification
+              kind={alarm.level === 2 ? 'error' : 'warning'}
+              title={alarmLabel(alarm.level)}
+              subtitle={alarm.reason}
+              hideCloseButton
+            />{/each}
         </section>
       {/if}
-
       <section class="section">
-        <h4>历史趋势</h4>
+        <h3><ChartLine size={16} />历史趋势</h3>
         <TimeRangePicker query={historyQuery} onchange={onRangeChange} />
         <div class="history-status" role="status" aria-live="polite">
           {#if loading}
@@ -201,12 +241,11 @@
             {history.length
               ? `已保留 ${history.length} 条数据 · 后续加载失败`
               : '历史数据暂不可用'}
-            <button class="small" onclick={() => retry++}>重试</button>
-          {:else if history.length > 0}
-            已载入 {history.length} 条 · 完整时段
-          {:else}
-            暂无历史数据
-          {/if}
+            <Button kind="ghost" size="small" on:click={() => retry++}
+              >重试</Button
+            >
+          {:else if history.length > 0}已载入 {history.length} 条 · 完整时段
+          {:else}暂无历史数据{/if}
         </div>
         {#if history.length > 0}
           <div class="chart-container">
@@ -232,198 +271,136 @@
   .drawer {
     width: var(--sidebar-width);
     height: 100%;
-    background: var(--bg-secondary);
+    background: var(--bg-primary);
     border-left: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     flex-shrink: 0;
+    z-index: 20;
   }
-
   .drawer-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    padding: 10px 14px;
+    gap: 16px;
+    padding: 24px 16px 24px 24px;
     border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
   }
-
-  .drawer-header h3 {
-    font-size: 18px;
-    font-weight: 700;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+  .eyebrow {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 0 0 8px;
   }
-
   .title-sn {
-    font-family: var(--font-mono);
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-primary);
+    font: 24px/32px var(--font-mono);
+    margin: 0;
+    overflow-wrap: anywhere;
   }
-
   .title-name {
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 14px;
     color: var(--text-secondary);
+    margin: 8px 0 0;
   }
-
-  .close-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 19px;
-    padding: 4px 8px;
-    line-height: 1;
-  }
-
-  .close-btn:hover {
-    color: var(--text-primary);
-    background: var(--bg-tertiary);
-  }
-
   .drawer-body {
     flex: 1;
     overflow-y: auto;
-    padding: 0;
   }
-
   .info-section {
-    padding: 12px 16px;
+    padding: 16px 24px;
     border-bottom: 1px solid var(--border);
   }
-
   .info-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px 0;
+    min-height: 36px;
+    gap: 16px;
+    font-size: 12px;
   }
-
   .info-label {
-    font-size: 14px;
-    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    flex-shrink: 0;
   }
-
   .info-value {
-    font-size: 15px;
-    font-weight: 500;
+    text-align: right;
+    overflow-wrap: anywhere;
   }
-
-  .info-value.mono {
-    font-family: var(--font-mono);
-    font-size: 14px;
-  }
-
   .section {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
+    padding: 24px;
+    border-bottom: 1px solid #393939;
   }
-
-  .section h4 {
-    font-size: 14px;
+  .section h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 16px;
+    font-size: 16px;
+    line-height: 24px;
     font-weight: 600;
-    margin: 0 0 10px;
-    color: var(--text-secondary);
   }
-
-  .metric-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 10px 12px;
-    margin-bottom: 8px;
-  }
-
-  .metric-card.alarm {
-    border-color: var(--alarm-l2);
-  }
-
   .metric-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 6px;
-  }
-
-  .metric-name {
-    font-size: 13px;
+    gap: 8px;
+    font-size: 12px;
     color: var(--text-secondary);
   }
-
   .metric-value {
-    font-size: 30px;
-    font-weight: 700;
-    font-family: var(--font-mono);
-    line-height: 1.2;
+    font: 40px/56px var(--font-mono);
+    margin-top: 12px;
   }
-
-  .metric-value.alarm-l2 {
-    color: var(--alarm-l2);
+  .metric-unit {
+    font: 14px var(--font-sans);
+    color: var(--text-secondary);
   }
-
-  .metric-value.alarm-l1 {
+  .alarm-l1 {
     color: var(--alarm-l1);
   }
-
-  .metric-unit {
-    font-size: 15px;
-    font-weight: 400;
-    color: var(--text-secondary);
-    margin-left: 4px;
+  .alarm-l2 {
+    color: var(--alarm-l2);
   }
-
   .alarm-info {
-    margin-top: 8px;
-    padding: 8px;
-    background: var(--alarm-l2-bg);
-    border-radius: var(--radius);
-    font-size: 13px;
+    font-size: 12px;
+    line-height: 20px;
     color: var(--text-secondary);
+    border-top: 1px solid var(--border);
+    margin-top: 16px;
+    padding-top: 12px;
   }
-
   .alarm-info p {
-    margin: 2px 0;
-  }
-
-  .alarm-detail {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
-    border-radius: var(--radius);
-    margin-bottom: 6px;
-  }
-
-  .alarm-detail p {
-    font-size: 13px;
-    color: var(--text-secondary);
     margin: 0;
   }
-
-  .alarm-l1-bg {
-    background: var(--alarm-l1-bg);
+  .section :global(.bx--inline-notification) {
+    width: 100%;
+    max-width: none;
+    margin: 0 0 8px;
   }
-
-  .alarm-l2-bg {
-    background: var(--alarm-l2-bg);
-  }
-
   .history-status {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
-    min-height: 36px;
-    padding: 6px 0;
-    color: var(--text-muted);
     font-size: 12px;
+    line-height: 20px;
+    color: var(--text-muted);
+    margin-top: 16px;
   }
-
   .chart-container {
-    height: 220px;
+    height: 240px;
+    margin-top: 16px;
+  }
+  @media (max-width: 1000px) {
+    .drawer {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: min(432px, 100%);
+      box-shadow: var(--shadow-lg);
+    }
   }
 </style>

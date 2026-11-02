@@ -36,7 +36,7 @@
 </script>
 
 <NavBar />
-<main>
+<main id="main-content" tabindex="-1">
   {#if appState.currentRoute === '/map'}
     <MapPage />
   {:else if appState.currentRoute === '/overview'}

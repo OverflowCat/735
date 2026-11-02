@@ -1,4 +1,26 @@
 <script lang="ts">
+  import SettingsAdjust from 'carbon-icons-svelte/lib/SettingsAdjust.svelte';
+  import Location from 'carbon-icons-svelte/lib/Location.svelte';
+  import Pin from 'carbon-icons-svelte/lib/Pin.svelte';
+  import TrashCan from 'carbon-icons-svelte/lib/TrashCan.svelte';
+  import Reset from 'carbon-icons-svelte/lib/Reset.svelte';
+
+  import {
+    Button,
+    Tag,
+    Checkbox,
+    NumberInput,
+    Select,
+    SelectItem,
+    InlineNotification,
+  } from 'carbon-components-svelte';
+  import Save from 'carbon-icons-svelte/lib/Save.svelte';
+  import Undo from 'carbon-icons-svelte/lib/Undo.svelte';
+  import Redo from 'carbon-icons-svelte/lib/Redo.svelte';
+  import ArrowLeft from 'carbon-icons-svelte/lib/ArrowLeft.svelte';
+  import ArrowRight from 'carbon-icons-svelte/lib/ArrowRight.svelte';
+  import ArrowUp from 'carbon-icons-svelte/lib/ArrowUp.svelte';
+  import ArrowDown from 'carbon-icons-svelte/lib/ArrowDown.svelte';
   import {
     appState,
     mapDevices,
@@ -59,414 +81,307 @@
     }, 1800);
   }
 
-  function onCoordInput(axis: 'x' | 'y', e: Event) {
-    const input = e.currentTarget as HTMLInputElement;
-    const n = Number(input.value);
-    if (!selectedPlacement || Number.isNaN(n)) return;
+  function setCoordinate(axis: 'x' | 'y', value: number | null) {
+    if (!selectedPlacement || value === null || !Number.isFinite(value)) return;
     updatePlacement(selectedPlacement.deviceId, {
       [axis]: Math.max(
         0,
         Math.min(
           axis === 'x' ? appState.scene.width : appState.scene.height,
-          n,
+          value,
         ),
       ),
     });
-  }
-
-  function onLabelStyleChange(e: Event) {
-    const select = e.currentTarget as HTMLSelectElement;
-    if (!selectedPlacement) return;
-    setPlacementLabelStyle(
-      selectedPlacement.deviceId,
-      select.value as DevicePlacement['labelStyle'],
-    );
   }
 </script>
 
 <aside class="edit-panel" aria-label="地图编辑面板">
   <header class="panel-header">
-    <span class="edit-label">编辑模式</span>
-    <span class="dirty-flag" class:dirty={appState.sceneDirty}>
-      {appState.sceneDirty ? '布局已修改' : '本地布局'}
-    </span>
-  </header>
-
-  <section class="panel-section">
-    <div class="section-title">
-      <span>操作</span>
-      <label class="snap-toggle" title="拖动/放置时对齐到网格">
-        <input
-          type="checkbox"
-          checked={appState.snapToGrid}
-          onchange={(e) => setSnapToGrid(e.currentTarget.checked)}
-        />
-        吸附 {appState.gridSize}px
-      </label>
+    <div>
+      <p class="eyebrow">布局配置</p>
+      <h2><SettingsAdjust size={20} />编辑模式</h2>
     </div>
-    <div class="btn-row">
-      <button
-        class="small"
-        onclick={handleSave}
+    <Tag type={appState.sceneDirty ? 'magenta' : 'gray'} size="sm"
+      >{appState.sceneDirty ? '布局已修改' : '本地布局'}</Tag
+    >
+  </header>
+  <section class="panel-section">
+    <Checkbox
+      labelText={`吸附网格 · ${appState.gridSize}px`}
+      checked={appState.snapToGrid}
+      on:check={(e) => setSnapToGrid(e.detail)}
+    />
+    <div class="btn-row save-row">
+      <Button
+        size="small"
+        icon={Save}
+        on:click={handleSave}
         disabled={saveState === 'saving'}
       >
-        {#if saveState === 'saving'}
-          保存中…
-        {:else if saveState === 'saved'}
-          已保存
-        {:else if saveState === 'local'}
-          已存本地
-        {:else if saveState === 'error'}
-          保存失败
-        {:else}
-          保存布局
-        {/if}
-      </button>
-      <button
-        class="small"
-        onclick={() => undoPlacement()}
-        title="撤销 (Ctrl+Z)">撤销</button
-      >
-      <button
-        class="small"
-        onclick={() => redoPlacement()}
-        title="重做 (Ctrl+Shift+Z)">重做</button
-      >
-      <button
-        class="small danger"
-        onclick={() => resetPlacements()}
-        title="恢复默认点位"
-      >
-        重置点位
-      </button>
+        {saveState === 'saving'
+          ? '保存中…'
+          : saveState === 'saved'
+            ? '已保存'
+            : saveState === 'local'
+              ? '已存本地'
+              : saveState === 'error'
+                ? '保存失败'
+                : '保存布局'}
+      </Button>
+      <Button
+        kind="ghost"
+        size="small"
+        icon={Undo}
+        iconDescription="撤销 (Ctrl+Z)"
+        on:click={() => undoPlacement()}
+      />
+      <Button
+        kind="ghost"
+        size="small"
+        icon={Redo}
+        iconDescription="重做 (Ctrl+Shift+Z)"
+        on:click={() => redoPlacement()}
+      />
     </div>
+    <Button
+      icon={Reset}
+      kind="danger-ghost"
+      size="small"
+      on:click={() => resetPlacements()}>重置点位</Button
+    >
   </section>
-
   <section class="panel-section">
-    <div class="section-title">放置设备</div>
+    <h3><Pin size={16} />放置设备</h3>
     {#if appState.placingDeviceId}
-      <div class="placing-hint">
-        <span>
-          正在放置「{deviceSn(
-            deviceById(appState.placingDeviceId) ?? {
-              id: appState.placingDeviceId,
-            },
-          )}」— 点击地图确定位置
-        </span>
-        <button class="small" onclick={() => cancelPlacing()}>取消 (Esc)</button
-        >
-      </div>
+      <InlineNotification
+        kind="info"
+        title="点击地图确定位置"
+        subtitle={`正在放置 ${deviceSn(deviceById(appState.placingDeviceId) ?? { id: appState.placingDeviceId })}`}
+        hideCloseButton
+        lowContrast
+      />
+      <Button kind="ghost" size="small" on:click={() => cancelPlacing()}
+        >取消 (Esc)</Button
+      >
     {:else if unplacedDevices.length > 0}
       <div class="device-list">
         {#each unplacedDevices as d (d.id)}
-          <button class="device-chip" onclick={() => startPlacing(d.id)}>
-            <span class="chip-type">{d.type === 'gamma' ? 'γ' : 'Rn'}</span>
-            <span class="chip-name">{deviceSn(d)}</span>
-          </button>
+          <Button
+            class="device-chip"
+            kind="tertiary"
+            size="small"
+            on:click={() => startPlacing(d.id)}
+            ><span class="chip-type">{d.type === 'gamma' ? 'γ' : 'Rn'}</span
+            ><span class="mono">{deviceSn(d)}</span></Button
+          >
         {/each}
       </div>
-    {:else}
-      <p class="empty-hint">本层设备已全部放置</p>
-    {/if}
+    {:else}<p class="empty-hint">本层设备已全部放置</p>{/if}
   </section>
-
   <section class="panel-section">
-    <div class="section-title">选中点位</div>
+    <h3><Location size={16} />选中点位</h3>
     {#if selectedPlacement && selectedDevice}
       {@const p = selectedPlacement}
-      {@const d = selectedDevice}
       <div class="inspector">
-        <div class="inspector-title">
-          <span class="chip-type">{d.type === 'gamma' ? 'γ' : 'Rn'}</span>
-          <div>
-            <div class="name">{deviceSn(d)}</div>
-            <div class="code">{d.name}</div>
-          </div>
+        <div>
+          <p class="selected-name mono">{deviceSn(selectedDevice)}</p>
+          <p class="empty-hint">{selectedDevice.name}</p>
         </div>
-
-        <label class="field">
-          <span>X</span>
-          <input
-            type="number"
+        <div class="coordinates">
+          <NumberInput
+            labelText="X 坐标"
+            size="sm"
             value={p.x}
-            min="0"
+            min={0}
             max={appState.scene.width}
-            onchange={(e) => onCoordInput('x', e)}
+            hideSteppers
+            invalidText="坐标超出地图范围"
+            on:change={(e) => setCoordinate('x', e.detail)}
           />
-        </label>
-        <label class="field">
-          <span>Y</span>
-          <input
-            type="number"
+          <NumberInput
+            labelText="Y 坐标"
+            size="sm"
             value={p.y}
-            min="0"
+            min={0}
             max={appState.scene.height}
-            onchange={(e) => onCoordInput('y', e)}
+            hideSteppers
+            invalidText="坐标超出地图范围"
+            on:change={(e) => setCoordinate('y', e.detail)}
           />
-        </label>
-
-        <label class="field">
-          <span>标注样式</span>
-          <select value={p.labelStyle ?? 'badge'} onchange={onLabelStyleChange}>
-            <option value="badge">指示标</option>
-            <option value="text">完整标注</option>
-            <option value="compact">紧凑</option>
-          </select>
-        </label>
-
-        <div class="btn-row">
-          <button class="small" onclick={() => nudgeSelectedPlacement(-10, 0)}
-            >←</button
-          >
-          <button class="small" onclick={() => nudgeSelectedPlacement(10, 0)}
-            >→</button
-          >
-          <button class="small" onclick={() => nudgeSelectedPlacement(0, -10)}
-            >↑</button
-          >
-          <button class="small" onclick={() => nudgeSelectedPlacement(0, 10)}
-            >↓</button
-          >
-          <button
-            class="small danger"
-            onclick={() => removeDevicePlacement(p.deviceId)}
-          >
-            移除点位
-          </button>
         </div>
+        <Select
+          labelText="标注样式"
+          size="sm"
+          selected={p.labelStyle ?? 'badge'}
+          on:update={(e) =>
+            setPlacementLabelStyle(
+              p.deviceId,
+              e.detail as DevicePlacement['labelStyle'],
+            )}
+        >
+          <SelectItem value="badge" text="指示标" /><SelectItem
+            value="text"
+            text="完整标注"
+          /><SelectItem value="compact" text="紧凑" />
+        </Select>
+        <div class="btn-row" role="group" aria-label="微调点位">
+          <Button
+            kind="ghost"
+            size="small"
+            icon={ArrowLeft}
+            iconDescription="向左移动"
+            on:click={() => nudgeSelectedPlacement(-10, 0)}
+          />
+          <Button
+            kind="ghost"
+            size="small"
+            icon={ArrowRight}
+            iconDescription="向右移动"
+            on:click={() => nudgeSelectedPlacement(10, 0)}
+          />
+          <Button
+            kind="ghost"
+            size="small"
+            icon={ArrowUp}
+            iconDescription="向上移动"
+            on:click={() => nudgeSelectedPlacement(0, -10)}
+          />
+          <Button
+            kind="ghost"
+            size="small"
+            icon={ArrowDown}
+            iconDescription="向下移动"
+            on:click={() => nudgeSelectedPlacement(0, 10)}
+          />
+        </div>
+        <Button
+          kind="danger-tertiary"
+          icon={TrashCan}
+          size="small"
+          on:click={() => removeDevicePlacement(p.deviceId)}>移除点位</Button
+        >
       </div>
-    {:else}
-      <p class="empty-hint">未选择设备</p>
-    {/if}
+    {:else}<p class="empty-hint">在地图上选择一个设备，以调整安装位置。</p>{/if}
   </section>
-
   <footer class="panel-footer">
-    <div>布局仅保存在当前浏览器</div>
+    <p>布局仅保存在当前浏览器</p>
+    <p>方向键微调 · Delete 移除 · Esc 取消</p>
   </footer>
 </aside>
 
 <style>
   .edit-panel {
-    width: 260px;
+    width: 288px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: 0;
-    background: var(--bg-secondary, #0f172a);
-    border-left: 1px solid var(--border, rgba(255, 255, 255, 0.12));
-    color: #e2e8f0;
+    background: var(--bg-primary);
+    border-left: 1px solid var(--border);
     overflow-y: auto;
-    z-index: 5;
+    z-index: 10;
   }
-
   .panel-header {
     display: flex;
-    align-items: center;
     justify-content: space-between;
+    align-items: center;
+    padding: 24px 16px;
+    border-bottom: 1px solid var(--border);
     gap: 8px;
-    padding: 12px 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
-
-  .edit-label {
+  .eyebrow {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 0 0 8px;
+  }
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 20px;
+    font-weight: 400;
+    margin: 0;
+  }
+  .panel-section {
+    padding: 24px 16px;
+    border-bottom: 1px solid #393939;
+  }
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 14px;
     font-weight: 600;
-    color: #38bdf8;
-    padding: 2px 8px;
-    border: 1px solid #38bdf8;
-    border-radius: 4px;
+    margin: 0 0 16px;
   }
-
-  .dirty-flag {
-    font-size: 13px;
-    color: #64748b;
-  }
-
-  .dirty-flag.dirty {
-    color: #f59e0b;
-    font-weight: 600;
-  }
-
-  .panel-section {
-    padding: 12px 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .section-title {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 13px;
-    font-weight: 600;
-    color: #94a3b8;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .snap-toggle {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    font-weight: 400;
-    text-transform: none;
-    letter-spacing: 0;
-    color: #94a3b8;
-    cursor: pointer;
-    user-select: none;
-  }
-
   .btn-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    align-items: center;
+    gap: 4px;
   }
-
-  .btn-row button {
-    font-size: 13px;
+  .save-row {
+    margin-top: 16px;
+    margin-bottom: 8px;
   }
-
   .device-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    max-height: 180px;
-    overflow-y: auto;
-  }
-
-  .device-chip {
-    display: flex;
-    align-items: center;
     gap: 8px;
-    text-align: left;
-    padding: 7px 10px;
-    background: rgba(56, 189, 248, 0.08);
-    border: 1px solid rgba(56, 189, 248, 0.25);
-    border-radius: 6px;
-    color: #e2e8f0;
-    cursor: pointer;
-    font-size: 13px;
   }
-
-  .device-chip:hover {
-    background: rgba(56, 189, 248, 0.18);
-    border-color: #38bdf8;
+  .device-list :global(.bx--btn) {
+    max-width: none;
+    justify-content: flex-start;
+    padding: 0 12px;
   }
-
   .chip-type {
-    flex-shrink: 0;
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(15, 23, 42, 0.9);
-    border: 1.5px solid #10b981;
-    font-size: 12px;
-    font-weight: 700;
+    min-width: 24px;
+    margin-right: 12px;
+    color: var(--text-secondary);
   }
-
-  .chip-name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .placing-hint {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    font-size: 13px;
-    color: #fbbf24;
-    background: rgba(245, 158, 11, 0.1);
-    border: 1px dashed rgba(245, 158, 11, 0.45);
-    border-radius: 6px;
-    padding: 10px;
-  }
-
   .empty-hint {
+    font-size: 12px;
+    line-height: 20px;
+    color: var(--text-muted);
     margin: 0;
-    font-size: 13px;
-    color: #64748b;
-    line-height: 1.5;
   }
-
+  .selected-name {
+    font-size: 14px;
+    margin: 0 0 4px;
+  }
   .inspector {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 20px;
   }
-
-  .inspector-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  .coordinates {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
   }
-
-  .inspector-title .name {
-    font-size: 14px;
-    font-weight: 600;
-    color: #f1f5f9;
-  }
-
-  .inspector-title .code {
-    font-size: 12px;
-    color: #94a3b8;
-  }
-
-  .field {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #94a3b8;
-  }
-
-  .field span {
-    width: 56px;
-    flex-shrink: 0;
-  }
-
-  .field input,
-  .field select {
-    flex: 1;
+  .coordinates :global(.bx--number) {
+    width: 100%;
     min-width: 0;
-    padding: 5px 8px;
-    border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    background: rgba(15, 23, 42, 0.8);
-    color: #e2e8f0;
-    font-size: 13px;
   }
-
-  .field input:focus,
-  .field select:focus {
-    outline: 1px solid #38bdf8;
+  .coordinates :global(input) {
+    min-width: 0;
   }
-
   .panel-footer {
     margin-top: auto;
-    padding: 10px 14px 14px;
-    font-size: 12px;
-    color: #64748b;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 16px;
+    font-size: 11px;
+    line-height: 20px;
+    color: var(--text-muted);
   }
-
-  :global(.small.danger) {
-    border-color: rgba(239, 68, 68, 0.5) !important;
-    color: #fca5a5 !important;
+  .panel-footer p {
+    margin: 0;
   }
-
-  :global(.small.danger:hover) {
-    background: rgba(239, 68, 68, 0.2) !important;
-    border-color: #ef4444 !important;
+  .panel-section :global(.bx--inline-notification) {
+    min-width: 0;
+    margin-bottom: 8px;
+  }
+  @media (max-width: 650px) {
+    .edit-panel {
+      width: 240px;
+    }
   }
 </style>

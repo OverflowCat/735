@@ -6,6 +6,7 @@
 
 - Svelte 5 + TypeScript
 - Vite
+- Carbon Design System（`carbon-components-svelte` + `carbon-icons-svelte`，Gray 100 主题）
 - Apache ECharts（历史趋势 / 对比图）
 - Three.js（3D 工厂视图）
 
@@ -60,6 +61,12 @@ src/
     data/floorplans/ # 图纸裁剪、安装点位、配置台账与地图目录
 ```
 
+## 界面设计
+
+应用使用 Carbon Svelte 的 Header、ContentSwitcher、Button、Tile、DataTable、Search、Select、Checkbox、NumberInput、TextInput、Tag 和通知组件。导航、状态、设备详情和编辑操作使用 Carbon 图标，并保留简体中文标签和可访问名称。主题在 `src/main.ts` 统一加载，地图和 ECharts 使用配套的 Carbon 色板；室内原始图纸与安装坐标保留。SVG 与 Three.js 的厂区展示色板共用 `map-theme.ts`。
+
+设备列表支持排序、搜索和打开详情；趋势对比最多选择 6 台同类型设备，切换指标清空选择，取消过期请求，加载失败显示提示。设备详情保留历史分批加载与重试。
+
 ## 数据源
 
 前端通过 `DeviceDataSource` 接口访问数据，当前实现为 `HttpDeviceDataSource`，调用后端 REST API：
@@ -105,6 +112,7 @@ pnpm run build
 node tests/map-browser.mjs
 node tests/live-refresh-browser.mjs  # 自动刷新、断线恢复、请求去重与超时
 node tests/history-browser.mjs  # 分批显示、自定义时间、历史与实时隔离、取消和重试
+node tests/carbon-browser.mjs  # Carbon 导航、搜索/详情、对比选择和响应式布局
 ```
 
 可通过 `PLAYWRIGHT_MODULE` 指定 Playwright 模块路径，`CHROMIUM_PATH` 指定浏览器，`MAP_TEST_URL` 指向本地服务，`MAP_SCREENSHOT` 保存截图。该检查会拦截 API 返回固定测试数据，不访问现场设备。
