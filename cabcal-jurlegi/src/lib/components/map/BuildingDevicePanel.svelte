@@ -200,7 +200,6 @@
       {/each}
     {/each}
   </div>
-  <footer>拖动标题移动 · 滚轮浏览 · 点击设备查看详情</footer>
 </section>
 
 <style>
@@ -341,12 +340,5 @@
   .reading small {
     color: #a9bcb6;
     font-size: 10px;
-  }
-  footer {
-    flex-shrink: 0;
-    padding: 7px 10px;
-    font-size: 10px;
-    color: #9cb5ab;
-    border-top: 1px solid #ffffff16;
   }
 </style>

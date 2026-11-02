@@ -110,7 +110,7 @@
       <section class="info-section">
         <div class="info-row">
           <span class="info-label">设备编号</span>
-          <span class="info-value mono">{device.code}</span>
+          <span class="info-value mono">{device.id}</span>
         </div>
         <div class="info-row">
           <span class="info-label">设备类型</span>

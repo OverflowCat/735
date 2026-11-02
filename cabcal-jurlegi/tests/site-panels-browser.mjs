@@ -30,7 +30,6 @@ const devices = [
   { id: 'radon-38', name: 'C35 氡38', type: 'radon', value: 65, alarm: false },
 ].map((d) => ({
   id: d.id,
-  code: d.id,
   name: d.name,
   type: d.type,
   station: 'STATION-01',

@@ -9,7 +9,6 @@ export const mockDevices: Device[] = [
   // 20 γ (order matches backend --gamma argv → gamma_01..gamma_20)
   ...legacyEndpoints.map(([id, ip], i) => ({
     id,
-    code: `BR-GAMMA-${id}`,
     name: `γ剂量率监测仪-${id.slice(6)}`,
     type: 'gamma' as const,
     station: 'STATION-01',
@@ -41,7 +40,6 @@ export const mockDevices: Device[] = [
     ] as const
   ).map(([id, name, value], i) => ({
     id,
-    code: `BR-GAMMA-${id}`,
     name,
     type: 'gamma' as const,
     station: 'STATION-01',
@@ -73,7 +71,6 @@ export const mockDevices: Device[] = [
     ] as const
   ).map(([id, value], i) => ({
     id,
-    code: `BR-RADON-C24-${id.slice(6).padStart(3, '0')}`,
     name: `空气测氡仪-${id.slice(6)}`,
     type: 'radon' as const,
     station: 'STATION-01',

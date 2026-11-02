@@ -30,7 +30,6 @@ pub async fn upload_data(
 
         let device = Device {
             id: report.device.clone(),
-            code: report.device.clone(),
             name: existing
                 .as_ref()
                 .map(|d| d.name.clone())
@@ -89,7 +88,6 @@ pub async fn upload_heartbeat(
         let existing = store.get_device(&report.device).await;
         let device = Device {
             id: report.device.clone(),
-            code: report.device.clone(),
             name: existing
                 .as_ref()
                 .map(|d| d.name.clone())
@@ -112,4 +110,56 @@ pub async fn upload_heartbeat(
         message: "success".into(),
         time: Utc::now().to_rfc3339(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::store::memory::MemoryStore;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn reports_and_history_use_device_id_without_device_code() {
+        let store: Store = Arc::new(MemoryStore::new());
+        let reports = serde_json::from_value(serde_json::json!([{
+            "station": "STATION-01",
+            "device": "2026012905",
+            "metrics": [{
+                "metric": "0102060301",
+                "name": "γ剂量率实时值",
+                "timestamp": "1792980000000",
+                "value": 45.0,
+                "unit": "nGy/h",
+                "alarm": false
+            }]
+        }]))
+        .unwrap();
+        let Json(response) = upload_data(State(store.clone()), Json(reports)).await;
+        assert_eq!(response.code, 200);
+
+        let heartbeats = serde_json::from_value(serde_json::json!([{
+            "station": "STATION-01",
+            "device": "2026012905",
+            "type": "gamma",
+            "status": "offline",
+            "timestamp": "1792980060000"
+        }]))
+        .unwrap();
+        let Json(response) = upload_heartbeat(State(store.clone()), Json(heartbeats)).await;
+        assert_eq!(response.code, 200);
+
+        let Json(devices) = crate::api::devices::list_devices(State(store.clone())).await;
+        assert_eq!(devices.len(), 1);
+        let json = serde_json::to_value(&devices[0]).unwrap();
+        assert_eq!(json["id"], "2026012905");
+        assert_eq!(json["status"], "offline");
+        assert!(json.get("code").is_none());
+        assert_eq!(devices[0].metrics[0].value, 45.0);
+
+        let history = store
+            .query_history("2026012905", "0102060301", 1792980000000, 1792980000000)
+            .await;
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].value, 45.0);
+    }
 }

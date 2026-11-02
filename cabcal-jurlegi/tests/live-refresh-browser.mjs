@@ -18,7 +18,6 @@ let releaseRequest;
 function devices() {
   return ['2026012904', 'gamma_12'].map((id, i) => ({
     id,
-    code: id,
     name: 'γ剂量率监测仪',
     type: 'gamma',
     station: 'STATION-01',

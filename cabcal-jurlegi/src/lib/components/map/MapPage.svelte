@@ -30,11 +30,6 @@
       ><i class="offline"></i>离线 / 未上报</span
     >
     <span><i class="alarm"></i>报警（标注等级）</span>
-    <span class="map-help"
-      >{currentMap.id === 'site'
-        ? '厂区示意图 · 点击建筑进入'
-        : '平面图定位 · 滚轮缩放 · 拖动空白平移'}</span
-    >
   </div>
 </div>
 
@@ -90,8 +85,5 @@
   }
   .alarm {
     background: #ef4444;
-  }
-  .map-help {
-    margin-left: auto;
   }
 </style>

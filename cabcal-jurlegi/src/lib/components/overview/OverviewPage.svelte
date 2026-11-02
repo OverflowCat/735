@@ -31,7 +31,7 @@
       const q = searchQuery.toLowerCase();
       return (
         deviceSn(d).toLowerCase().includes(q) ||
-        d.code.toLowerCase().includes(q) ||
+        d.id.toLowerCase().includes(q) ||
         d.name.toLowerCase().includes(q) ||
         d.type.includes(q)
       );
@@ -90,7 +90,7 @@
         const points = await getHistory(id, compareMetric, compareQuery);
         return {
           deviceId: id,
-          name: deviceSn(device ?? { id, code: id }),
+          name: deviceSn(device ?? { id }),
           points,
         };
       }),

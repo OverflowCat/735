@@ -150,7 +150,6 @@
           正在放置「{deviceSn(
             deviceById(appState.placingDeviceId) ?? {
               id: appState.placingDeviceId,
-              code: appState.placingDeviceId,
             },
           )}」— 点击地图确定位置
         </span>
@@ -215,7 +214,6 @@
           </select>
         </label>
 
-        <div class="hint-line">方向键微调 · Delete 移除</div>
         <div class="btn-row">
           <button class="small" onclick={() => nudgeSelectedPlacement(-10, 0)}
             >←</button
@@ -238,14 +236,12 @@
         </div>
       </div>
     {:else}
-      <p class="empty-hint">点击地图上的设备进行选择 / 拖动</p>
+      <p class="empty-hint">未选择设备</p>
     {/if}
   </section>
 
   <footer class="panel-footer">
     <div>布局仅保存在当前浏览器</div>
-    <div>拖空白平移 · 滚轮缩放</div>
-    <div>Esc 取消放置 · Ctrl+Z 撤销</div>
   </footer>
 </aside>
 
@@ -451,11 +447,6 @@
   .field input:focus,
   .field select:focus {
     outline: 1px solid #38bdf8;
-  }
-
-  .hint-line {
-    font-size: 12px;
-    color: #64748b;
   }
 
   .panel-footer {

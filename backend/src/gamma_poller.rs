@@ -87,7 +87,6 @@ async fn poll_device(
     let existing = store.get_device(&config.source_id).await;
     let device = Device {
         id: config.source_id.clone(),
-        code: format!("BR-GAMMA-{}", config.source_id),
         name: existing
             .as_ref()
             .map(|d| d.name.clone())
@@ -173,7 +172,6 @@ async fn ingest_radon(
     let existing = store.get_device(&device_id).await;
     let device = Device {
         id: device_id.clone(),
-        code: format!("BR-RADON-C24-{node_id:03}"),
         name: existing
             .as_ref()
             .map(|d| d.name.clone())

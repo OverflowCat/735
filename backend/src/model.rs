@@ -110,7 +110,6 @@ pub struct MetricData {
 #[serde(rename_all = "camelCase")]
 pub struct Device {
     pub id: String,
-    pub code: String,
     pub name: String,
     #[serde(rename = "type")]
     pub device_type: DeviceType,

@@ -9,7 +9,6 @@ import type {
 
 export interface Device {
   id: string;
-  code: string;
   name: string;
   type: DeviceType;
   station: string;
@@ -33,8 +32,8 @@ export interface DeviceHistory {
 }
 
 /** Short unique label (asset SN). Field inventory uses SN as `id`; names may be identical. */
-export function deviceSn(d: Pick<Device, 'id' | 'code' | 'assetSn'>): string {
-  return d.assetSn || d.id || d.code;
+export function deviceSn(d: Pick<Device, 'id' | 'assetSn'>): string {
+  return d.assetSn || d.id;
 }
 
 export function deviceStatusLabel(d: Device): string {

@@ -70,11 +70,6 @@
       ? `γ${deviceSn(device).slice(-2)}`
       : `Rn ${device.id.replace('radon-', '')}`;
   }
-  function regionSummary(mapId: string): string {
-    return mapId.startsWith('hydromet')
-      ? '一至四楼 · 点击查看'
-      : '点击查看平面图';
-  }
   let isPanning = $state(false);
   let panStart = $state({ x: 0, y: 0 });
   let ghost = $state<{ x: number; y: number } | null>(null);
@@ -390,8 +385,6 @@
             ? deviceSn(deviceById(placingDevice)!)
             : placingDevice}」· Esc 取消
         </span>
-      {:else}
-        <span class="edit-tip">拖动设备调位置 · 右键移除 · 点击选中编辑</span>
       {/if}
     </div>
   {/if}
@@ -611,16 +604,6 @@
         >
           {obj.label}
         </text>
-        {#if obj.targetMapId && siteBuildingDisplays.some((b) => b.mapId === obj.targetMapId && b.floating)}
-          <text
-            x={obj.labelX}
-            y={(obj.labelY ?? 0) + 32}
-            text-anchor="middle"
-            fill="#fff"
-            font-size="12"
-            class="building-title">{regionSummary(obj.targetMapId)}</text
-          >
-        {/if}
       </g>
     {/each}
 
@@ -804,7 +787,7 @@
               </text>
             </g>
           {:else}
-            <!-- badge / default: marker + code + measurement -->
+            <!-- badge / default: marker + ID + measurement -->
             <g class="badge-style">
               <circle
                 r="13"
@@ -838,7 +821,7 @@
                 font-weight="600"
                 class="device-caption"
               >
-                {device.code}
+                {device.id}
               </text>
               <text
                 y="44"
@@ -1121,11 +1104,6 @@
     padding: 2px 8px;
     border: 1px solid #38bdf8;
     border-radius: 4px;
-  }
-
-  .edit-tip {
-    font-size: 13px;
-    color: #94a3b8;
   }
 
   .placing-hint {

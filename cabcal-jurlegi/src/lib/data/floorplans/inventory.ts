@@ -72,7 +72,6 @@ function placeholder(
 ): Device {
   return {
     id,
-    code: id,
     name,
     type,
     assetSn,

@@ -25,7 +25,6 @@ page.on('pageerror', (e) => errors.push(e.message));
 let oldSceneCalls = 0;
 const device = {
   id: 'gamma_12',
-  code: 'BR-GAMMA-gamma_12',
   name: 'γ剂量率监测仪',
   type: 'gamma',
   station: 'STATION-01',
@@ -140,6 +139,14 @@ try {
   await page.keyboard.press('Enter');
   await page.locator('.drawer').waitFor();
   assert.match(await page.locator('.drawer').innerText(), /2026012916/);
+  assert.equal(
+    await page
+      .locator('.drawer .info-row')
+      .first()
+      .locator('.info-value')
+      .innerText(),
+    'gamma_12',
+  );
   await page.locator('.close-btn').click();
   const box = await pin.locator('rect').boundingBox();
   await drag(
@@ -227,6 +234,9 @@ try {
   assert.equal(await page.locator('[data-device]').count(), 1);
   await page.getByRole('button', { name: '监测总览', exact: true }).click();
   assert.match(await page.locator('.summary-row').innerText(), /39\s*未上报/);
+  await page.locator('.search-input').fill('gamma_12');
+  assert.equal(await page.locator('tbody tr').count(), 1);
+  assert.match(await page.locator('tbody tr').innerText(), /2026012916/);
   assert.equal(oldSceneCalls, 0);
   assert.deepEqual(errors, []);
   // A legacy scene cache cannot replace packaged floorplan geometry.

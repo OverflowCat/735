@@ -94,7 +94,6 @@ async fn ingest_packet(packet: &DataPacket, hub: &HubConfig, store: &Store) {
         let existing = store.get_device(&device_id).await;
         let device = Device {
             id: device_id.clone(),
-            code: format!("BR-RADON-C24-{:03}", node.node_id),
             name: existing
                 .as_ref()
                 .map(|d| d.name.clone())
