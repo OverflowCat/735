@@ -1,6 +1,5 @@
 <script lang="ts">
-  import Map from 'carbon-icons-svelte/lib/Map.svelte';
-  import Dashboard from 'carbon-icons-svelte/lib/Dashboard.svelte';
+  import Menu from 'carbon-icons-svelte/lib/Menu.svelte';
   import Location from 'carbon-icons-svelte/lib/Location.svelte';
   import Connect from 'carbon-icons-svelte/lib/Connect.svelte';
   import InformationFilled from 'carbon-icons-svelte/lib/InformationFilled.svelte';
@@ -8,8 +7,6 @@
 
   import {
     Header,
-    HeaderNav,
-    HeaderNavItem,
     HeaderUtilities,
     HeaderGlobalAction,
     Tag,
@@ -17,6 +14,9 @@
   } from 'carbon-components-svelte';
   import Renew from 'carbon-icons-svelte/lib/Renew.svelte';
   import { appState, loadDevices } from '../../state/app-state.svelte';
+
+  let { expanded, ontoggle }: { expanded: boolean; ontoggle: () => void } =
+    $props();
 
   const dataLabel = $derived(
     appState.dataMode === 'mock'
@@ -39,29 +39,23 @@
     href="#/map"
     uiShellAriaLabel="735 工厂辐射监测系统"
   >
+    <div slot="skipToContent" class="header-start">
+      <SkipToContent
+        href="#main-content"
+        on:click={(event) => {
+          event.preventDefault();
+          document.getElementById('main-content')?.focus();
+        }}>跳转到主要内容</SkipToContent
+      >
+      <HeaderGlobalAction
+        icon={Menu}
+        iconDescription={expanded ? '收起导航' : '展开导航'}
+        aria-expanded={expanded}
+        aria-controls="app-sidebar"
+        on:click={ontoggle}
+      />
+    </div>
     <span slot="platform" class="brand-platform">辐射监测</span>
-    <SkipToContent
-      slot="skipToContent"
-      href="#main-content"
-      on:click={(event) => {
-        event.preventDefault();
-        document.getElementById('main-content')?.focus();
-      }}>跳转到主要内容</SkipToContent
-    >
-    <HeaderNav aria-label="主导航">
-      <HeaderNavItem
-        href="#/map"
-        text="工厂地图"
-        icon={Map}
-        isSelected={appState.currentRoute === '/map'}
-      />
-      <HeaderNavItem
-        href="#/overview"
-        text="监测总览"
-        icon={Dashboard}
-        isSelected={appState.currentRoute === '/overview'}
-      />
-    </HeaderNav>
     <HeaderUtilities>
       <div class="station-label">
         <Location size={16} />新疆站点 <span>STATION-01</span>
@@ -95,8 +89,9 @@
     height: 48px;
     flex-shrink: 0;
   }
-  .navbar :global(.bx--header__nav) {
-    display: block;
+  .header-start {
+    display: flex;
+    align-items: center;
   }
   .station-label {
     display: flex;
@@ -132,10 +127,6 @@
     }
     .navbar :global(.bx--header__name) {
       padding: 0 12px;
-      font-size: 12px;
-    }
-    .navbar :global(.bx--header__menu-item) {
-      padding: 0 6px;
       font-size: 12px;
     }
     .data-indicator {

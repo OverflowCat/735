@@ -6,8 +6,42 @@
     loadDevices,
   } from './lib/state/app-state.svelte';
   import NavBar from './lib/components/common/NavBar.svelte';
+  import SideBar from './lib/components/common/SideBar.svelte';
   import MapPage from './lib/components/map/MapPage.svelte';
   import OverviewPage from './lib/components/overview/OverviewPage.svelte';
+
+  let windowWidth = $state(window.innerWidth);
+  let mobileNavOpen = $state(false);
+  let sidebarCollapsed = $state(readSidebarPreference());
+  const mobile = $derived(windowWidth < 900);
+  const sidebarExpanded = $derived(mobile ? mobileNavOpen : !sidebarCollapsed);
+
+  function readSidebarPreference() {
+    try {
+      return localStorage.getItem('cabcal-sidebar-collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  function toggleSidebar() {
+    if (mobile) mobileNavOpen = !mobileNavOpen;
+    else {
+      sidebarCollapsed = !sidebarCollapsed;
+      try {
+        localStorage.setItem(
+          'cabcal-sidebar-collapsed',
+          String(sidebarCollapsed),
+        );
+      } catch {
+        // The navigation still works when browser storage is unavailable.
+      }
+    }
+  }
+
+  function closeMobileNav() {
+    mobileNavOpen = false;
+  }
 
   function syncHash() {
     const hash = window.location.hash.replace('#', '') || '/map';
@@ -35,21 +69,59 @@
   });
 </script>
 
-<NavBar />
-<main id="main-content" tabindex="-1">
-  {#if appState.currentRoute === '/map'}
-    <MapPage />
-  {:else if appState.currentRoute === '/overview'}
-    <OverviewPage />
-  {:else}
-    <MapPage />
+<svelte:window
+  bind:innerWidth={windowWidth}
+  onkeydown={(event) => {
+    if (event.key === 'Escape') closeMobileNav();
+  }}
+/>
+
+<NavBar expanded={sidebarExpanded} ontoggle={toggleSidebar} />
+<div
+  class="app-workspace"
+  style:--navigation-width={mobile || !sidebarExpanded ? '48px' : '256px'}
+>
+  {#if mobile && sidebarExpanded}
+    <button
+      class="navigation-backdrop"
+      aria-label="关闭导航"
+      tabindex="-1"
+      onclick={closeMobileNav}
+    ></button>
   {/if}
-</main>
+  <SideBar
+    expanded={sidebarExpanded}
+    ontoggle={toggleSidebar}
+    onselect={closeMobileNav}
+  />
+  <main id="main-content" tabindex="-1" inert={mobile && sidebarExpanded}>
+    {#if appState.currentRoute === '/overview'}
+      <OverviewPage />
+    {:else}
+      <MapPage />
+    {/if}
+  </main>
+</div>
 
 <style>
+  .app-workspace {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    padding-left: var(--navigation-width);
+  }
   main {
     flex: 1;
     display: flex;
     overflow: hidden;
+    min-width: 0;
+    position: relative;
+  }
+  .navigation-backdrop {
+    position: fixed;
+    inset: 48px 0 0;
+    z-index: 5999;
+    border: 0;
+    background: #00000080;
   }
 </style>

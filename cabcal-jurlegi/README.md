@@ -63,7 +63,9 @@ src/
 
 ## 界面设计
 
-应用使用 Carbon Svelte 的 Header、ContentSwitcher、Button、Tile、DataTable、Search、Select、Checkbox、NumberInput、TextInput、Tag 和通知组件。导航、状态、设备详情和编辑操作使用 Carbon 图标，并保留简体中文标签和可访问名称。主题在 `src/main.ts` 统一加载，地图和 ECharts 使用配套的 Carbon 色板；室内原始图纸与安装坐标保留。SVG 与 Three.js 的厂区展示色板共用 `map-theme.ts`。
+应用使用 Carbon Svelte 的 Header、SideNav、SideNavLink、ContentSwitcher、Button、Tile、DataTable、Search、Select、Checkbox、NumberInput、TextInput、Tag 和通知组件。导航、状态、设备详情和编辑操作使用 Carbon 图标，并保留简体中文标签和可访问名称。主题在 `src/main.ts` 统一加载，地图和 ECharts 使用配套的 Carbon 色板；室内原始图纸与安装坐标保留。SVG 与 Three.js 的厂区展示色板共用 `map-theme.ts`。
+
+顶部仅保留 48px 系统栏；主导航、厂区和楼层选择放在可折叠侧栏中，各区域使用不同 Carbon 图标。桌面侧栏可收至 48px 图标栏并记住偏好，小屏幕展开时覆盖地图，选中区域或按 Esc 后收起。当前区域的楼层入口按需显示；点位统计放在侧栏，2D/3D 与编辑操作悬浮在地图右上角。
 
 设备列表支持排序、搜索和打开详情；趋势对比最多选择 6 台同类型设备，切换指标清空选择，取消过期请求，加载失败显示提示。设备详情保留历史分批加载与重试。
 

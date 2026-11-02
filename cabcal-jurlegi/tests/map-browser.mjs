@@ -55,7 +55,7 @@ const url = process.env.MAP_TEST_URL || 'http://127.0.0.1:5173/';
 async function choose(name) {
   await page
     .locator('.map-navigation')
-    .getByRole('button', { name, exact: false })
+    .getByRole('link', { name, exact: false })
     .click();
   await page.locator('.factory-svg image').waitFor();
   await page.waitForFunction(
@@ -63,7 +63,7 @@ async function choose(name) {
   );
 }
 async function floor(n) {
-  await page.getByRole('button', { name: `${n} 楼`, exact: true }).click();
+  await page.getByRole('link', { name: `${n} 楼`, exact: true }).click();
   await page.waitForFunction(
     (n) =>
       document
@@ -232,7 +232,7 @@ try {
   assert.equal(await page.locator('.three-error').count(), 0);
   await page.getByRole('tab', { name: '2D', exact: true }).click();
   assert.equal(await page.locator('[data-device]').count(), 1);
-  await page.getByRole('menuitem', { name: '监测总览', exact: true }).click();
+  await page.getByRole('link', { name: '监测总览', exact: true }).click();
   assert.match(await page.locator('.summary-row').innerText(), /39\s*未上报/);
   await page.locator('.search-input').fill('gamma_12');
   assert.equal(await page.locator('tbody tr').count(), 1);

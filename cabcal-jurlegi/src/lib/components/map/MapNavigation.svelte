@@ -1,119 +1,157 @@
 <script lang="ts">
-  import Map from 'carbon-icons-svelte/lib/Map.svelte';
-  import Building from 'carbon-icons-svelte/lib/Building.svelte';
-
-  import { Button, Tag } from 'carbon-components-svelte';
-  import { appState, switchMap } from '../../state/app-state.svelte';
+  import { SideNavItems, SideNavLink, Tag } from 'carbon-components-svelte';
+  import MapBoundary from 'carbon-icons-svelte/lib/MapBoundary.svelte';
+  import Mountain from 'carbon-icons-svelte/lib/Mountain.svelte';
+  import DrillDown from 'carbon-icons-svelte/lib/DrillDown.svelte';
+  import Layers from 'carbon-icons-svelte/lib/Layers.svelte';
+  import Filter from 'carbon-icons-svelte/lib/Filter.svelte';
+  import Chemistry from 'carbon-icons-svelte/lib/Chemistry.svelte';
+  import Floorplan from 'carbon-icons-svelte/lib/Floorplan.svelte';
+  import { appState, switchMap, navigate } from '../../state/app-state.svelte';
   import {
     buildings,
     mapById,
     mapDefinitions,
   } from '../../data/floorplans/maps';
 
+  let { expanded, onselect }: { expanded: boolean; onselect: () => void } =
+    $props();
+  const areaIcons = {
+    c19: Mountain,
+    c35: DrillDown,
+    c3: Layers,
+    filter: Filter,
+    hydromet: Chemistry,
+  };
   const currentMap = $derived(mapById(appState.activeMapId));
-  const floors = $derived(
-    mapDefinitions.filter((m) => m.building === currentMap.building && m.floor),
-  );
+  const isMap = $derived(appState.currentRoute !== '/overview');
 
   function buildingSummary(id: string) {
     const ids = new Set(
       mapDefinitions
-        .filter((m) => m.building === id)
-        .flatMap((m) => m.scene.devices.map((p) => p.deviceId)),
+        .filter((map) => map.building === id)
+        .flatMap((map) =>
+          map.scene.devices.map((placement) => placement.deviceId),
+        ),
     );
-    const devices = appState.devices.filter((d) => ids.has(d.id));
+    const devices = appState.devices.filter((device) => ids.has(device.id));
     return {
       count: devices.length,
-      alarms: devices.filter((d) => d.alarms.length > 0).length,
+      alarms: devices.filter((device) => device.alarms.length > 0).length,
     };
+  }
+
+  function choose(id: string) {
+    switchMap(id);
+    navigate('/map');
+    onselect();
   }
 </script>
 
-<div class="region-bar">
-  <nav class="map-navigation" aria-label="区域选择">
-    <Button
-      kind="ghost"
-      size="field"
-      icon={Map}
-      aria-current={currentMap.id === 'site' ? 'page' : undefined}
-      on:click={() => switchMap('site')}>厂区总览</Button
-    >
+<div
+  class="map-navigation"
+  class:collapsed={!expanded}
+  role="group"
+  aria-label="厂区与楼层"
+>
+  {#if expanded}<p class="section-label">监测区域</p>{:else}<div
+      class="section-divider"
+    ></div>{/if}
+  <SideNavItems>
+    <SideNavLink
+      href="#/map"
+      icon={MapBoundary}
+      text="厂区总览"
+      title="厂区总览"
+      aria-label="厂区总览"
+      isSelected={isMap && currentMap.id === 'site'}
+      on:click={(event) => {
+        event.preventDefault();
+        choose('site');
+      }}
+    />
     {#each buildings as building}
       {@const summary = buildingSummary(building.id)}
-      <Button
-        kind="ghost"
-        size="field"
-        aria-current={currentMap.building === building.id ? 'page' : undefined}
-        icon={Building}
+      {@const floors = mapDefinitions.filter(
+        (map) => map.building === building.id && map.floor,
+      )}
+      {@const active = isMap && currentMap.building === building.id}
+      <SideNavLink
+        href="#/map"
+        icon={areaIcons[building.id as keyof typeof areaIcons]}
+        isSelected={active}
         title={`${building.name} · ${summary.count} 点位${summary.alarms ? ` · ${summary.alarms} 报警` : ''}`}
-        on:click={() => switchMap(building.mapId)}
+        aria-label={building.name}
+        data-area={building.id}
+        on:click={(event) => {
+          event.preventDefault();
+          choose(active ? currentMap.id : building.mapId);
+        }}
       >
         {building.name}<span class="region-count"
           >{summary.count}<span class="sr-only"> 点位</span></span
         >
-        {#if summary.alarms}<Tag type="red" size="sm">{summary.alarms} 报警</Tag
+        {#if expanded && summary.alarms}<Tag slot="badge" type="red" size="sm"
+            >{summary.alarms} 报警</Tag
           >{/if}
-      </Button>
+      </SideNavLink>
+      {#if active && floors.length > 0 && expanded}
+        <li class="floor-navigation">
+          <ul class="floor-tabs" aria-label={`${building.name}楼层`}>
+            {#each floors as floor}
+              <SideNavLink
+                href="#/map"
+                icon={Floorplan}
+                title={`${floor.floor} 楼`}
+                aria-label={`${floor.floor} 楼`}
+                isSelected={floor.id === currentMap.id}
+                on:click={(event) => {
+                  event.preventDefault();
+                  choose(floor.id);
+                }}>{floor.floor} 楼</SideNavLink
+              >
+            {/each}
+          </ul>
+        </li>
+      {/if}
     {/each}
-  </nav>
-  {#if floors.length > 0}
-    <div class="floor-tabs" role="group" aria-label="水冶厂楼层">
-      {#each floors as floor}
-        <Button
-          size="small"
-          kind={floor.id === currentMap.id ? 'primary' : 'ghost'}
-          aria-pressed={floor.id === currentMap.id}
-          on:click={() => switchMap(floor.id)}>{floor.floor} 楼</Button
-        >
-      {/each}
-    </div>
-  {/if}
+  </SideNavItems>
 </div>
 
 <style>
-  .region-bar {
-    display: flex;
-    min-height: 48px;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    gap: 16px;
-    padding: 0 24px;
-  }
   .map-navigation {
-    display: flex;
-    align-items: stretch;
-    flex: 1;
-    overflow-x: auto;
-    min-width: 0;
+    padding-top: 16px;
   }
-  .map-navigation :global(.bx--btn) {
-    color: var(--text-secondary);
-    padding: 0 40px 0 16px;
-    white-space: nowrap;
-    flex-shrink: 0;
-    max-width: none;
-    min-height: 48px;
-    border-bottom: 2px solid transparent;
+  .section-label {
+    color: var(--text-muted);
+    font-size: 11px;
+    margin: 0 16px 8px;
+    line-height: 16px;
   }
-  .map-navigation :global([aria-current='page']) {
-    border-bottom-color: #78a9ff;
-    color: #f4f4f4;
-    background: #393939;
+  .section-divider {
+    margin: 0 12px 8px;
+    height: 1px;
+    background: #525252;
   }
   .region-count {
     margin-left: 8px;
     color: var(--text-muted);
-    font: 12px var(--font-mono);
+    font: 11px var(--font-mono);
+  }
+  .floor-navigation {
+    list-style: none;
   }
   .floor-tabs {
-    display: flex;
-    align-items: center;
-    gap: 1px;
-    flex-shrink: 0;
+    padding: 4px 0 4px 24px;
+    margin: 0;
+    list-style: none;
   }
-  .floor-tabs :global(.bx--btn) {
-    padding: 0 12px;
+  .floor-tabs :global(.bx--side-nav__link) {
+    min-height: 32px;
+    font-size: 12px;
+  }
+  .floor-tabs :global(.bx--side-nav__icon) {
+    margin-right: 12px;
   }
   .sr-only {
     position: absolute;
@@ -122,15 +160,5 @@
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
-  }
-  @media (max-width: 900px) {
-    .region-bar {
-      padding: 0 12px;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .floor-tabs {
-      margin-bottom: 8px;
-    }
   }
 </style>

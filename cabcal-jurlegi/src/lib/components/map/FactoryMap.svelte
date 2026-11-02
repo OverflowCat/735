@@ -857,8 +857,8 @@
 <style>
   .fit-view {
     position: absolute;
-    right: 12px;
-    top: 12px;
+    left: 16px;
+    bottom: 16px;
     z-index: 10;
     font-size: 12px;
   }

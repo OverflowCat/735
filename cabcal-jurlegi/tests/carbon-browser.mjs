@@ -49,7 +49,7 @@ await page.route('**/api/**', (route) => {
 });
 try {
   await page.goto(process.env.MAP_TEST_URL || 'http://127.0.0.1:5176/');
-  await page.getByRole('menuitem', { name: '监测总览', exact: true }).click();
+  await page.getByRole('link', { name: '监测总览', exact: true }).click();
   await page.getByRole('searchbox', { name: '搜索设备' }).fill('gamma_12');
   assert.equal(await page.locator('tbody tr').count(), 1);
   await page
@@ -81,7 +81,7 @@ try {
   for (const width of [1440, 1024, 768, 600, 390]) {
     await page.setViewportSize({ width, height: 900 });
     for (const route of ['工厂地图', '监测总览']) {
-      await page.getByRole('menuitem', { name: route, exact: true }).click();
+      await page.getByRole('link', { name: route, exact: true }).click();
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth),
         width,
