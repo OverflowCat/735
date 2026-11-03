@@ -9,6 +9,7 @@
   import SideBar from './lib/components/common/SideBar.svelte';
   import MapPage from './lib/components/map/MapPage.svelte';
   import OverviewPage from './lib/components/overview/OverviewPage.svelte';
+  import QueryPage from './lib/components/overview/QueryPage.svelte';
 
   let windowWidth = $state(window.innerWidth);
   let mobileNavOpen = $state(false);
@@ -103,6 +104,8 @@
   <main id="main-content" tabindex="-1" inert={mobile && sidebarExpanded}>
     {#if appState.currentRoute === '/overview'}
       <OverviewPage />
+    {:else if appState.currentRoute === '/query'}
+      <QueryPage />
     {:else}
       <MapPage />
     {/if}

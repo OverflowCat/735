@@ -3,7 +3,11 @@
   import * as echarts from 'echarts';
   import type { HistoricalPoint } from '../../types/device';
   import { cssVar, cssVarA, themeState } from '../../state/theme.svelte';
-  import { displayUnit, formatMetricText } from '../../utils/format';
+  import {
+    displayUnit,
+    formatAxisValue,
+    formatMetricText,
+  } from '../../utils/format';
 
   interface Props {
     history: HistoricalPoint[];
@@ -24,7 +28,7 @@
       markLineData.push({
         yAxis: alarmThresholds.up,
         label: {
-          formatter: `上限 ${alarmThresholds.up}`,
+          formatter: `上限 ${formatAxisValue(alarmThresholds.up)}`,
           position: 'insideEndTop',
         },
         lineStyle: { color: cssVar('--danger', '#da1e28'), type: 'dashed' },
@@ -32,7 +36,7 @@
       markLineData.push({
         yAxis: alarmThresholds.low,
         label: {
-          formatter: `下限 ${alarmThresholds.low}`,
+          formatter: `下限 ${formatAxisValue(alarmThresholds.low)}`,
           position: 'insideEndBottom',
         },
         lineStyle: { color: cssVar('--warning', '#8e6a00'), type: 'dashed' },
@@ -58,7 +62,11 @@
         type: 'value',
         name: displayUnit(unit),
         nameTextStyle: { color: label, fontSize: 11 },
-        axisLabel: { color: label, fontSize: 11 },
+        axisLabel: {
+          color: label,
+          fontSize: 11,
+          formatter: formatAxisValue,
+        },
         axisLine: { lineStyle: { color: axis } },
         splitLine: { lineStyle: { color: cssVar('--chart-grid', '#dde1e6') } },
       },

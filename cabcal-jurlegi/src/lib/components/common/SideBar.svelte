@@ -11,6 +11,7 @@
   import Map from 'carbon-icons-svelte/lib/Map.svelte';
   import Dashboard from 'carbon-icons-svelte/lib/Dashboard.svelte';
   import Menu from 'carbon-icons-svelte/lib/Menu.svelte';
+  import ChartScatter from 'carbon-icons-svelte/lib/ChartScatter.svelte';
   import Renew from 'carbon-icons-svelte/lib/Renew.svelte';
   import Connect from 'carbon-icons-svelte/lib/Connect.svelte';
   import InformationFilled from 'carbon-icons-svelte/lib/InformationFilled.svelte';
@@ -73,7 +74,11 @@
         aria-controls="app-sidebar"
         on:click={ontoggle}
       />
-      {#if expanded}<span>735 辐射监测</span>{/if}
+      {#if expanded}<img
+          class="brand-logo"
+          src="/cnnmc_logo.svg"
+          alt="中核测控 CNNMC"
+        />{/if}
     </div>
     <div class="sidebar-scroll">
       <SideNavItems>
@@ -95,6 +100,16 @@
           aria-label="监测总览"
           large
           isSelected={appState.currentRoute === '/overview'}
+          on:click={onselect}
+        />
+        <SideNavLink
+          href="#/query"
+          text="数据查询"
+          icon={ChartScatter}
+          title="数据查询"
+          aria-label="数据查询"
+          large
+          isSelected={appState.currentRoute === '/query'}
           on:click={onselect}
         />
       </SideNavItems>
@@ -242,6 +257,12 @@
   }
   .sidebar-brand :global(.bx--btn:focus) {
     box-shadow: inset 0 0 0 2px var(--accent);
+  }
+  .brand-logo {
+    height: 28px;
+    width: auto;
+    margin: 0 4px 0 4px;
+    flex-shrink: 0;
   }
   .data-indicator {
     min-width: 0;

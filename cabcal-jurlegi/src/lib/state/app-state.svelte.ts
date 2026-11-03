@@ -1,6 +1,10 @@
 import type { Device } from '../types/device';
 import type { DevicePlacement, FactoryScene } from '../types/scene';
-import type { DeviceDataSource, HistoryQuery } from '../services/data-source';
+import type {
+  AggregateGranule,
+  DeviceDataSource,
+  HistoryQuery,
+} from '../services/data-source';
 import { HttpDeviceDataSource } from '../services/http-data-source';
 import { mockDevices } from '../data/mock';
 import { mapById, deviceMapId } from '../data/floorplans/maps';
@@ -62,6 +66,13 @@ class AppState {
   gridSize = $state(10);
   viewMode: '2d' | '3d' = $state('2d');
   currentRoute: string = $state('/map');
+  /** Intended selection for the 数据查询 board, set by the expand (launch) action. */
+  queryIntent: {
+    deviceId: string;
+    metric: string;
+    query: HistoryQuery;
+    granule: AggregateGranule;
+  } | null = $state(null);
 }
 
 export const appState = new AppState();
@@ -187,6 +198,26 @@ export function setSnapToGrid(on: boolean) {
 export function navigate(route: string) {
   appState.currentRoute = route;
   window.location.hash = route;
+}
+
+/**
+ * Open the 数据查询 board (third tab) pre-seeded for a device's history
+ * panel ("open in new window"). Closes any open device drawer.
+ */
+export function openQueryBoard(p: {
+  deviceId: string;
+  metric: string;
+  query: HistoryQuery;
+  granule?: AggregateGranule;
+}) {
+  appState.queryIntent = {
+    deviceId: p.deviceId,
+    metric: p.metric,
+    query: p.query,
+    granule: p.granule ?? 'raw',
+  };
+  appState.selectedDeviceId = null;
+  navigate('/query');
 }
 
 let loadingDevices = false;

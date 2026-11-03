@@ -3,7 +3,7 @@
   import * as echarts from 'echarts';
   import type { HistoricalPoint } from '../../types/device';
   import { cssVar, themeState } from '../../state/theme.svelte';
-  import { displayUnit } from '../../utils/format';
+  import { displayUnit, formatAxisValue, formatMetricText } from '../../utils/format';
 
   interface SeriesData {
     deviceId: string;
@@ -85,7 +85,11 @@
         type: 'value',
         name: displayUnit(unit),
         nameTextStyle: { color: label, fontSize: 13 },
-        axisLabel: { color: label, fontSize: 13 },
+        axisLabel: {
+          color: label,
+          fontSize: 13,
+          formatter: formatAxisValue,
+        },
         axisLine: { lineStyle: { color: axis } },
         splitLine: { lineStyle: { color: cssVar('--chart-grid', '#dde1e6') } },
       },
@@ -94,6 +98,18 @@
         backgroundColor: cssVar('--chart-tooltip-bg', '#ffffff'),
         borderColor: cssVar('--chart-tooltip-border', '#c6c6c6'),
         textStyle: { color: cssVar('--text-primary', '#161616'), fontSize: 14 },
+        formatter: (params: any) => {
+          if (!params || params.length === 0) return '';
+          const first = params[0];
+          const d = new Date(first.value[0]);
+          const pad = (n: number) => String(n).padStart(2, '0');
+          const time = `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+          const rows = (params as any[]).map(
+            (p) =>
+              `${p.marker}${p.seriesName}: ${formatMetricText(p.value[1], unit)}`,
+          );
+          return `${time}<br/>${rows.join('<br/>')}`;
+        },
       },
       series: series.map((s, i) => ({
         name: s.name,

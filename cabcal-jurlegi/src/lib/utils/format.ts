@@ -32,3 +32,18 @@ export function formatMetricText(value: number, unit: string): string {
   const d = formatMetric(value, unit);
   return `${d.value} ${d.unit}`;
 }
+
+/**
+ * Format a value for a chart axis tick. Unit is omitted (the axis carries it),
+ * and the value stays in its original unit — unlike `formatMetric` it never
+ * switches to a derived unit such as μSv/h, so the axis name stays consistent.
+ */
+export function formatAxisValue(value: number): string {
+  if (!Number.isFinite(value)) return '—';
+  const abs = Math.abs(value);
+  if (abs >= 10000 || (abs > 0 && abs < 0.01)) {
+    return value.toExponential(2);
+  }
+  // Trim floating-point noise (e.g. 89.40000000001 → 89.4).
+  return String(Math.round(value * 10) / 10);
+}

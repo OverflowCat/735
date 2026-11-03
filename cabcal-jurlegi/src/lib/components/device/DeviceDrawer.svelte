@@ -16,11 +16,13 @@
     InlineNotification,
   } from 'carbon-components-svelte';
   import Close from 'carbon-icons-svelte/lib/Close.svelte';
+  import Launch from 'carbon-icons-svelte/lib/Launch.svelte';
   import { untrack } from 'svelte';
   import {
     appState,
     selectDevice,
     dataSource,
+    openQueryBoard,
   } from '../../state/app-state.svelte';
   import { relativeQuery, type HistoryQuery } from '../../services/data-source';
   import { loadHistoryBatches } from '../../services/history-batches';
@@ -233,7 +235,27 @@
         </section>
       {/if}
       <section class="section">
-        <h3><ChartLine size={16} />历史趋势</h3>
+        <div class="section-title-row">
+          <h3><ChartLine size={16} />历史趋势</h3>
+          <Button
+            class="expand-btn"
+            kind="ghost"
+            size="small"
+            icon={Launch}
+            iconDescription="在新窗口打开数据查询"
+            title="在数据查询中打开该设备的历史数据"
+            aria-label="在数据查询中打开该设备的历史数据"
+            on:click={() => {
+              if (device && historyMetric)
+                openQueryBoard({
+                  deviceId: device.id,
+                  metric: historyMetric,
+                  query: historyQuery,
+                  granule: 'raw',
+                });
+            }}
+          />
+        </div>
         <TimeRangePicker query={historyQuery} onchange={onRangeChange} />
         {#if loading && history.length === 0}
           <div class="chart-container"><ChartSkeleton /></div>
@@ -337,6 +359,16 @@
   .section {
     padding: 24px;
     border-bottom: 1px solid var(--border);
+  }
+  .section-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .section-title-row h3 {
+    margin: 0;
   }
   .section h3 {
     display: flex;

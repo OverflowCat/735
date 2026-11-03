@@ -13,6 +13,30 @@ export const TIME_RANGE_LABELS: Record<TimeRange, string> = {
   '7d': '7天',
 };
 
+/**
+ * Aggregation granularity for history downsampling. `raw` keeps every
+ * returned point; the rest bucket points into fixed-width windows and
+ * average the values within each window.
+ */
+export type AggregateGranule = 'raw' | '1m' | '5m' | '15m' | '1h' | '1d';
+
+export const AGGREGATE_LABELS: Record<AggregateGranule, string> = {
+  raw: '原始数据',
+  '1m': '1分钟',
+  '5m': '5分钟',
+  '15m': '15分钟',
+  '1h': '1小时',
+  '1d': '1天',
+};
+
+export const AGGREGATE_MS: Record<Exclude<AggregateGranule, 'raw'>, number> = {
+  '1m': 60 * 1000,
+  '5m': 5 * 60 * 1000,
+  '15m': 15 * 60 * 1000,
+  '1h': 60 * 60 * 1000,
+  '1d': 24 * 60 * 60 * 1000,
+};
+
 /** History window: relative preset or absolute [startMs, endMs]. */
 export type HistoryQuery =
   | { kind: 'relative'; range: TimeRange }
