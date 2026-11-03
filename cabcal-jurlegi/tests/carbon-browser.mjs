@@ -25,9 +25,9 @@ const device = (id, type = 'gamma') => ({
     {
       metric: type === 'gamma' ? '0102060301' : '0102060302',
       name: '测量值',
-      timestamp: String(Date.now()),
+      timestamp: Date.now(),
       value: 328.5,
-      unit: type === 'gamma' ? 'nGy/h' : 'Bq/m³',
+      unit: type === 'gamma' ? 'nSv/h' : 'Bq/m3',
       alarm: false,
     },
   ],
@@ -86,13 +86,14 @@ try {
         await page.evaluate(() => document.documentElement.scrollWidth),
         width,
       );
-      const headerRight = await page
-        .locator('.bx--header__global')
-        .evaluate((el) => el.getBoundingClientRect().right);
-      assert.ok(
-        headerRight <= width + 1,
-        `header controls overflow at ${width}px`,
-      );
+      assert.equal(await page.locator('.bx--header').count(), 0);
+      const sidebar = await page.locator('#app-sidebar').boundingBox();
+      assert.equal(sidebar.y, 0);
+      assert.equal(sidebar.width, width < 900 ? 48 : 208);
+      if (route === '工厂地图') {
+        const map = await page.locator('.map-main').boundingBox();
+        assert.equal(map.y, 0);
+      }
     }
   }
   assert.deepEqual(errors, []);

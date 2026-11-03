@@ -5,7 +5,7 @@
     navigate,
     loadDevices,
   } from './lib/state/app-state.svelte';
-  import NavBar from './lib/components/common/NavBar.svelte';
+  import { SkipToContent } from 'carbon-components-svelte';
   import SideBar from './lib/components/common/SideBar.svelte';
   import MapPage from './lib/components/map/MapPage.svelte';
   import OverviewPage from './lib/components/overview/OverviewPage.svelte';
@@ -76,10 +76,16 @@
   }}
 />
 
-<NavBar expanded={sidebarExpanded} ontoggle={toggleSidebar} />
+<SkipToContent
+  href="#main-content"
+  on:click={(event) => {
+    event.preventDefault();
+    document.getElementById('main-content')?.focus();
+  }}>跳转到主要内容</SkipToContent
+>
 <div
   class="app-workspace"
-  style:--navigation-width={mobile || !sidebarExpanded ? '48px' : '256px'}
+  style:--navigation-width={mobile || !sidebarExpanded ? '48px' : '208px'}
 >
   {#if mobile && sidebarExpanded}
     <button
@@ -119,7 +125,7 @@
   }
   .navigation-backdrop {
     position: fixed;
-    inset: 48px 0 0;
+    inset: 0;
     z-index: 5999;
     border: 0;
     background: #00000080;

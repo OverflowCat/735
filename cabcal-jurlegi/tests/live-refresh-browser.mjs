@@ -27,9 +27,9 @@ function devices() {
       {
         metric: '0102060301',
         name: 'γ剂量率',
-        timestamp: String(Date.now()),
+        timestamp: Date.now(),
         value: requests * 100 + i,
-        unit: 'nGy/h',
+        unit: 'nSv/h',
         alarm: false,
       },
     ],

@@ -42,6 +42,8 @@ const startingMap = initialMapId();
 class AppState {
   devices: Device[] = $state(mergeInstalledDevices(mockDevices));
   dataMode: 'mock' | 'live' = $state('mock');
+  devicesReady = $state(false);
+  devicesLoading = $state(false);
   dataRefreshFailed = $state(false);
   dataUpdatedAt: string | null = $state(null);
   activeMapId = $state(startingMap);
@@ -191,6 +193,7 @@ let loadingDevices = false;
 export async function loadDevices() {
   if (loadingDevices) return;
   loadingDevices = true;
+  appState.devicesLoading = true;
   try {
     const remote = await ds.getDevices();
     if (!Array.isArray(remote)) throw new Error('Invalid device response');
@@ -203,6 +206,8 @@ export async function loadDevices() {
     console.warn('Device refresh failed; retaining previous readings', err);
   } finally {
     loadingDevices = false;
+    appState.devicesLoading = false;
+    appState.devicesReady = true;
   }
 }
 

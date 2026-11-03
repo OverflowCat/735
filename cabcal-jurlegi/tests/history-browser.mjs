@@ -28,9 +28,9 @@ const inventory = () =>
       {
         metric: '0102060301',
         name: '剂量率',
-        timestamp: String(Date.now()),
+        timestamp: Date.now(),
         value: inventoryCalls,
-        unit: 'nGy/h',
+        unit: 'nSv/h',
         alarm: false,
       },
     ],
@@ -66,6 +66,11 @@ async function choose(name) {
     .click();
 }
 const status = page.locator('.history-status');
+// Complete state reads exactly "已载入 N 条"; in-progress text carries batch info.
+const loadedFully = () =>
+  /^已载入 \d+ 条$/.test(
+    document.querySelector('.history-status')?.textContent?.trim() ?? '',
+  );
 try {
   await page.goto(process.env.MAP_TEST_URL || 'http://127.0.0.1:5175/');
   await page.locator('[data-panel-device="gamma_12"]').click();
@@ -97,18 +102,10 @@ try {
   );
   mode = 'success';
   held();
-  await page.waitForFunction(() =>
-    document
-      .querySelector('.history-status')
-      ?.textContent?.includes('完整时段'),
-  );
+  await page.waitForFunction(loadedFully);
   assert.match(await status.innerText(), /4 条/);
   await choose('7天');
-  await page.waitForFunction(() =>
-    document
-      .querySelector('.history-status')
-      ?.textContent?.includes('完整时段'),
-  );
+  await page.waitForFunction(loadedFully);
   const seven = requests.slice(2);
   assert.ok(seven.length > 2);
   assert.equal(seven.at(-1).start, seven[0].end - 7 * 86400000);
@@ -125,11 +122,7 @@ try {
     .fill('2026-10-29T09:00');
   const firstCustom = requests.length;
   await choose('查询');
-  await page.waitForFunction(() =>
-    document
-      .querySelector('.history-status')
-      ?.textContent?.includes('完整时段'),
-  );
+  await page.waitForFunction(loadedFully);
   assert.equal(requests[firstCustom].end - requests.at(-1).start, 3600000);
   mode = 'failure';
   await choose('24小时');
@@ -142,11 +135,7 @@ try {
   assert.equal(await page.locator('.chart-container canvas').count(), 1);
   mode = 'success';
   await choose('重试');
-  await page.waitForFunction(() =>
-    document
-      .querySelector('.history-status')
-      ?.textContent?.includes('完整时段'),
-  );
+  await page.waitForFunction(loadedFully);
   mode = 'hold-older';
   await choose('1小时');
   await page.waitForFunction(() =>
@@ -156,11 +145,7 @@ try {
   mode = 'success';
   const before = requests.length;
   await choose('15分钟');
-  await page.waitForFunction(() =>
-    document
-      .querySelector('.history-status')
-      ?.textContent?.includes('完整时段'),
-  );
+  await page.waitForFunction(loadedFully);
   assert.equal(requests.length, before + 1);
   assert.match(await status.innerText(), /2 条/);
   oldRequest();

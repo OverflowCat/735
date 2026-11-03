@@ -124,19 +124,19 @@
   }
   .section-label {
     color: var(--text-muted);
-    font-size: 11px;
+    font-size: 13px;
     margin: 0 16px 8px;
     line-height: 16px;
   }
   .section-divider {
     margin: 0 12px 8px;
     height: 1px;
-    background: #525252;
+    background: var(--border);
   }
   .region-count {
     margin-left: 8px;
     color: var(--text-muted);
-    font: 11px var(--font-mono);
+    font: 13px var(--font-mono);
   }
   .floor-navigation {
     list-style: none;
@@ -147,8 +147,8 @@
     list-style: none;
   }
   .floor-tabs :global(.bx--side-nav__link) {
-    min-height: 32px;
-    font-size: 12px;
+    min-height: 44px;
+    font-size: 15px;
   }
   .floor-tabs :global(.bx--side-nav__icon) {
     margin-right: 12px;

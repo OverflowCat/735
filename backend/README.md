@@ -50,7 +50,7 @@ cargo run -- \
 
 - 协议：RMS-200 / RMS-2000 显示单元（带地址）与上位机通讯协议（见 `/home/user/735/RMS-200.txt`）
 - 读实时剂量率：`1D 01 <addr> <check>` → `1E <m0 m1 exp> <更新标志> <addr> <check>`
-- 3 字节科学计数法：前 2 字节基数（mantissa/1000），第 3 字节 10 的指数；单位 nGy/h
+- 3 字节科学计数法：前 2 字节基数（mantissa/1000），第 3 字节 10 的指数；单位 nSv/h
 - 校验：前序字节累加和取低字节
 - 驱动：`src/gamma.rs`，轮询：`src/gamma_poller.rs`
 - HS05G **不是** gamma 协议，见下方氡仪

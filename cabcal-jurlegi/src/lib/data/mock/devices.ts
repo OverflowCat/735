@@ -2,7 +2,7 @@ import type { Device } from '../../types/device';
 import { legacyEndpoints } from '../floorplans/inventory';
 
 const now = Date.now();
-const ts = (offset: number) => String(now + offset);
+const ts = (offset: number) => now + offset;
 
 /** Default inventory matching the 20 on-line γ tunnels + shared-bus radon nodes. */
 export const mockDevices: Device[] = [
@@ -20,7 +20,7 @@ export const mockDevices: Device[] = [
         name: 'γ剂量率实时值',
         timestamp: ts(-3000 - i * 200),
         value: 250 + ((i * 37) % 900),
-        unit: 'nGy/h',
+        unit: 'nSv/h',
         alarm: false as const,
       },
     ],
@@ -51,7 +51,7 @@ export const mockDevices: Device[] = [
         name: 'γ剂量率实时值',
         timestamp: ts(-2500 - i * 180),
         value,
-        unit: 'nGy/h',
+        unit: 'nSv/h',
         alarm: false as const,
       },
     ],
@@ -82,7 +82,7 @@ export const mockDevices: Device[] = [
         name: '氡及子体浓度实时值',
         timestamp: ts(-5000 - i * 300),
         value,
-        unit: 'Bq/m³',
+        unit: 'Bq/m3',
         alarm: false as const,
       },
     ],

@@ -2,7 +2,7 @@
   import DragVertical from 'carbon-icons-svelte/lib/DragVertical.svelte';
   import ArrowRight from 'carbon-icons-svelte/lib/ArrowRight.svelte';
 
-  import { Button } from 'carbon-components-svelte';
+  import { Button, SkeletonText } from 'carbon-components-svelte';
   import Renew from 'carbon-icons-svelte/lib/Renew.svelte';
   import { untrack } from 'svelte';
   import {
@@ -11,6 +11,7 @@
     switchMap,
   } from '../../state/app-state.svelte';
   import { deviceSn, deviceStatusLabel } from '../../types/device';
+  import { displayUnit, formatMetric } from '../../utils/format';
   import type { MapDefinition } from '../../types/scene';
 
   let {
@@ -50,7 +51,7 @@
     left: number;
     top: number;
   } | null>(null);
-  const width = $derived(Math.min(310, Math.max(0, availableWidth - 16)));
+  const width = $derived(Math.min(260, Math.max(0, availableWidth - 16)));
   const height = $derived(Math.min(370, Math.max(0, availableHeight - 16)));
   const defaultX = $derived(
     Math.max(8, Math.min(availableWidth - width - 8, anchorX)),
@@ -198,14 +199,23 @@
             </span>
             <span class="asset">{deviceSn(device)}</span>
           </span>
-          <span class="reading"
-            >{metric && Number.isFinite(metric.value)
-              ? metric.value.toFixed(1)
-              : '—'}
-            <small
-              >{metric?.unit ??
-                (device.type === 'gamma' ? 'nGy/h' : 'Bq/m³')}</small
-            >
+          <span class="reading">
+            {#if !appState.devicesReady}
+              <SkeletonText width="80px" />
+            {:else if metric && Number.isFinite(metric.value)}
+              {@const d = formatMetric(metric.value, metric.unit)}
+              {d.value}
+              <small>{d.unit}</small>
+            {:else}
+              —
+              <small
+                >{metric
+                  ? displayUnit(metric.unit)
+                  : device.type === 'gamma'
+                    ? 'nSv/h'
+                    : 'Bq/m3'}</small
+              >
+            {/if}
           </span>
         </Button>
       {/each}
@@ -220,20 +230,21 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid #525252;
+    opacity: 0.75;
+    border: 1px solid var(--border);
     border-radius: 0;
-    background: #262626;
-    box-shadow: 0 8px 28px #00000055;
-    color: #f4f4f4;
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-lg);
+    color: var(--text-primary);
   }
   .dragging {
-    box-shadow: 0 12px 35px #00000088;
+    box-shadow: var(--shadow-lg);
   }
   header {
     display: flex;
     flex-shrink: 0;
-    border-bottom: 1px solid #ffffff20;
-    background: #262626;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
   }
   .drag-handle {
     flex: 1;
@@ -244,7 +255,7 @@
     border: 0;
     border-radius: 0;
     background: transparent;
-    color: #f4f4f4;
+    color: var(--text-primary);
     padding: 10px;
     cursor: grab;
     touch-action: none;
@@ -254,7 +265,7 @@
     cursor: grabbing;
   }
   .grip {
-    color: #a8a8a8;
+    color: var(--text-muted);
     font-size: 21px;
     line-height: 1;
   }
@@ -264,7 +275,7 @@
   .drag-handle small {
     margin-left: auto;
     font-size: 11px;
-    color: #a8a8a8;
+    color: var(--text-muted);
   }
   .device-scroll {
     overflow-y: auto;
@@ -272,7 +283,7 @@
     min-height: 0;
     flex: 1;
     scrollbar-width: thin;
-    scrollbar-color: #6f6f6f #262626;
+    scrollbar-color: #a8a8a8 #ffffff;
   }
   .floor-heading {
     display: flex;
@@ -282,8 +293,8 @@
     top: 0;
     z-index: 1;
     padding: 6px 12px;
-    background: #393939;
-    color: #c6c6c6;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
     font-size: 11px;
   }
   .floor-heading :global(.bx--btn) {
@@ -300,20 +311,20 @@
     min-height: 48px;
     gap: 10px;
     border: 0;
-    border-bottom: 1px solid #ffffff0c;
+    border-bottom: 1px solid var(--border);
     border-radius: 0;
     padding: 8px 12px;
     background: transparent;
-    color: #f4f4f4;
+    color: var(--text-primary);
     text-align: left;
   }
   :global(.device-row:hover),
   :global(.device-row.selected) {
-    background: #393939;
+    background: var(--bg-tertiary);
   }
   :global(.device-row.alarm) {
-    color: #f1c21b;
-    border-left: 3px solid #f1c21b;
+    color: var(--warning);
+    border-left: 3px solid var(--warning);
   }
   .device-info {
     display: flex;
@@ -331,7 +342,7 @@
     opacity: 0.75;
   }
   .asset {
-    color: #a8a8a8;
+    color: var(--text-muted);
     font-size: 10px;
     font-family: var(--font-mono);
   }
@@ -342,7 +353,7 @@
     white-space: nowrap;
   }
   .reading small {
-    color: #c6c6c6;
+    color: var(--text-secondary);
     font-size: 10px;
   }
 </style>

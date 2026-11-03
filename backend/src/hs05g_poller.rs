@@ -79,14 +79,13 @@ async fn ingest_packet(packet: &DataPacket, hub: &HubConfig, store: &Store) {
 
     for node in &packet.nodes {
         let device_id = resolve_device_id(node, hub);
-        let ts_str = packet_ts.to_string();
 
         let metric = MetricData {
             metric: "0102060302".into(), // 氡及子体浓度实时值
             name: "氡及子体浓度实时值".into(),
-            timestamp: ts_str.clone(),
+            timestamp: packet_ts,
             value: node.radon_concentration as f64,
-            unit: "Bq/m³".into(),
+            unit: "Bq/m3".into(),
             alarm: AlarmField::None,
         };
 

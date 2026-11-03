@@ -14,7 +14,7 @@ export interface AlarmInfo {
 export interface MetricData {
   metric: string;
   name: string;
-  timestamp: string; // ms timestamp string
+  timestamp: number; // ms since epoch
   value: number;
   unit: string;
   alarm: false | AlarmInfo;
@@ -31,5 +31,5 @@ export interface HeartbeatReport {
   device: string;
   type: DeviceType;
   status: DeviceStatus;
-  timestamp: string;
+  timestamp: number;
 }

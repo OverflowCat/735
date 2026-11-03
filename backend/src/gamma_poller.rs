@@ -67,20 +67,19 @@ async fn poll_device(
     let mut client = RmsClient::connect(&config.addr, config.device_addr).await?;
     let reading = client.read_dose_rate().await?;
     info!(
-        "gamma: {} dose_rate={:.4} nGy/h updated={} addr=0x{:02X}",
+        "gamma: {} dose_rate={:.4} nSv/h updated={} addr=0x{:02X}",
         config.addr, reading.dose_rate, reading.updated, reading.address
     );
 
     let now = chrono::Utc::now();
     let ts_ms = now.timestamp_millis();
-    let ts_str = ts_ms.to_string();
 
     let dose_metric = MetricData {
         metric: METRIC_DOSE_RATE.into(),
         name: "γ剂量率实时值".into(),
-        timestamp: ts_str.clone(),
+        timestamp: ts_ms,
         value: reading.dose_rate,
-        unit: "nGy/h".into(),
+        unit: "nSv/h".into(),
         alarm: AlarmField::None,
     };
 
@@ -159,13 +158,12 @@ async fn ingest_radon(
     ts_ms: i64,
 ) {
     let device_id = format!("radon-{node_id}");
-    let ts_str = ts_ms.to_string();
     let metric = MetricData {
         metric: METRIC_RADON.into(),
         name: "氡及子体浓度实时值".into(),
-        timestamp: ts_str,
+        timestamp: ts_ms,
         value: reading.radon as f64,
-        unit: "Bq/m³".into(),
+        unit: "Bq/m3".into(),
         alarm: AlarmField::None,
     };
 

@@ -11,9 +11,9 @@
 // Dose-rate / alarm values are 3-byte scientific notation:
 //   bytes[0..2] big-endian mantissa, value = mantissa / 1000.0
 //   bytes[2]    decimal exponent, final = mantissa / 1000.0 * 10^exp
-//   unit: nSv/h or nGy/h
-// Example: 22 EC 01 → 0x22EC=8940 → 8.940 * 10^1 = 89.4 nGy/h
-// Example: 03 E8 04 → 0x03E8=1000 → 1.000 * 10^4 = 1.000e4 nGy/h
+//   unit: nSv/h or nGy/h (this site reports nSv/h)
+// Example: 22 EC 01 → 0x22EC=8940 → 8.940 * 10^1 = 89.4 nSv/h
+// Example: 03 E8 04 → 0x03E8=1000 → 1.000 * 10^4 = 1.000e4 nSv/h
 
 use anyhow::{Context, Result, bail};
 use socket2::{SockRef, TcpKeepalive};
@@ -41,7 +41,7 @@ const BROADCAST: u8 = 0xFF;
 /// Real-time dose rate sample from the display unit.
 #[derive(Debug, Clone, Copy)]
 pub struct DoseReading {
-    /// Dose rate in nGy/h (protocol may report nSv/h; same numeric scale).
+    /// Dose rate in nSv/h (protocol may report nGy/h; same numeric scale).
     pub dose_rate: f64,
     /// True if this value has not been read before (update flag = 0x01).
     pub updated: bool,

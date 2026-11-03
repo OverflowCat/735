@@ -27,7 +27,9 @@
   import type { Device } from '../../types/device';
   import type { HistoricalPoint } from '../../types/device';
   import { deviceSn, deviceStatusLabel } from '../../types/device';
+  import { displayUnit, formatMetric } from '../../utils/format';
   import TrendChart from '../charts/TrendChart.svelte';
+  import ChartSkeleton from '../charts/ChartSkeleton.svelte';
   import TimeRangePicker from '../charts/TimeRangePicker.svelte';
 
   const device = $derived(
@@ -186,6 +188,7 @@
             lowContrast
           />{/if}
         {#each device.metrics as m}
+          {@const d = formatMetric(m.value, m.unit)}
           <Tile class="metric-card">
             <div class="metric-header">
               <span>{m.name}</span>
@@ -199,14 +202,14 @@
               class:alarm-l2={m.alarm !== false && m.alarm.level === 2}
               class:alarm-l1={m.alarm !== false && m.alarm.level === 1}
             >
-              {m.value.toFixed(1)} <span class="metric-unit">{m.unit}</span>
+              {d.value} <span class="metric-unit">{d.unit}</span>
             </div>
             {#if m.alarm !== false}
               <div class="alarm-info">
                 <p>原因：{m.alarm.reason}</p>
                 <p>
                   阈值：{m.alarm.threshold.low} ~ {m.alarm.threshold.up}
-                  {m.unit}
+                  {displayUnit(m.unit)}
                 </p>
                 {#if m.alarm.action}<p>
                     联动动作：{m.alarm.action === 'vent_start'
@@ -232,22 +235,9 @@
       <section class="section">
         <h3><ChartLine size={16} />历史趋势</h3>
         <TimeRangePicker query={historyQuery} onchange={onRangeChange} />
-        <div class="history-status" role="status" aria-live="polite">
-          {#if loading}
-            {completedBatches === 0
-              ? '正在加载最近时段…'
-              : `已载入 ${completedBatches}/${totalBatches} 批 · ${history.length} 条，继续加载更早数据…`}
-          {:else if historyError}
-            {history.length
-              ? `已保留 ${history.length} 条数据 · 后续加载失败`
-              : '历史数据暂不可用'}
-            <Button kind="ghost" size="small" on:click={() => retry++}
-              >重试</Button
-            >
-          {:else if history.length > 0}已载入 {history.length} 条 · 完整时段
-          {:else}暂无历史数据{/if}
-        </div>
-        {#if history.length > 0}
+        {#if loading && history.length === 0}
+          <div class="chart-container"><ChartSkeleton /></div>
+        {:else if history.length > 0}
           <div class="chart-container">
             <TrendChart
               {history}
@@ -262,6 +252,21 @@
             />
           </div>
         {/if}
+        <div class="history-status" role="status" aria-live="polite">
+          {#if loading}
+            {completedBatches === 0
+              ? '正在加载最近时段…'
+              : `已载入 ${history.length} 条 · 第 ${completedBatches}/${totalBatches} 批，继续加载更早数据…`}
+          {:else if historyError}
+            {history.length
+              ? `已保留 ${history.length} 条数据 · 后续加载失败`
+              : '历史数据暂不可用'}
+            <Button kind="ghost" size="small" on:click={() => retry++}
+              >重试</Button
+            >
+          {:else if history.length > 0}已载入 {history.length} 条
+          {:else}暂无历史数据{/if}
+        </div>
       </section>
     </div>
   </aside>
@@ -331,7 +336,7 @@
   }
   .section {
     padding: 24px;
-    border-bottom: 1px solid #393939;
+    border-bottom: 1px solid var(--border);
   }
   .section h3 {
     display: flex;

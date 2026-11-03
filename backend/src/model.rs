@@ -98,7 +98,7 @@ impl<'de> serde::Deserialize<'de> for AlarmField {
 pub struct MetricData {
     pub metric: String,
     pub name: String,
-    pub timestamp: String, // ms timestamp string
+    pub timestamp: i64, // ms since epoch
     pub value: f64,
     pub unit: String,
     pub alarm: AlarmField,
@@ -168,7 +168,7 @@ pub struct FactoryScene {
     pub devices: Vec<DevicePlacement>,
 }
 
-// ── Upload payloads (from protocol.typ §2.2) ─────────────────────
+// ── Upload payloads (from protocol.typ 接口规格) ─────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceReport {
@@ -184,7 +184,7 @@ pub struct HeartbeatReport {
     #[serde(rename = "type")]
     pub device_type: DeviceType,
     pub status: DeviceStatus,
-    pub timestamp: String,
+    pub timestamp: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

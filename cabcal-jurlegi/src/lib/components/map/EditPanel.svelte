@@ -303,7 +303,7 @@
   }
   .panel-section {
     padding: 24px 16px;
-    border-bottom: 1px solid #393939;
+    border-bottom: 1px solid var(--border);
   }
   h3 {
     display: flex;

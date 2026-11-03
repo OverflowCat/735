@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import * as echarts from 'echarts';
   import type { HistoricalPoint } from '../../types/device';
+  import { cssVar, themeState } from '../../state/theme.svelte';
+  import { displayUnit } from '../../utils/format';
 
   interface SeriesData {
     deviceId: string;
@@ -19,7 +21,15 @@
   let chartEl = $state<HTMLDivElement | null>(null);
   let chart: echarts.ECharts | null = null;
 
-  const COLORS = [
+  const LIGHT_COLORS = [
+    '#0f62fe',
+    '#007d79',
+    '#8e6a00',
+    '#da1e28',
+    '#8a3ffc',
+    '#d02670',
+  ];
+  const DARK_COLORS = [
     '#78a9ff',
     '#3ddbd9',
     '#f1c21b',
@@ -29,6 +39,9 @@
   ];
 
   function buildOption() {
+    const colors = themeState.dark ? DARK_COLORS : LIGHT_COLORS;
+    const label = cssVar('--chart-label', '#525252');
+    const axis = cssVar('--chart-axis', '#525252');
     // Show dates when the window spans more than ~2 days.
     const spanMs = (() => {
       let min = Infinity;
@@ -47,7 +60,7 @@
       grid: { top: 42, right: 16, bottom: 28, left: 56 },
       legend: {
         data: series.map((s) => s.name),
-        textStyle: { color: '#c6c6c6', fontSize: 14, fontWeight: 600 },
+        textStyle: { color: label, fontSize: 14, fontWeight: 600 },
         top: 4,
         itemWidth: 18,
         itemHeight: 10,
@@ -55,7 +68,7 @@
       xAxis: {
         type: 'time',
         axisLabel: {
-          color: '#c6c6c6',
+          color: label,
           fontSize: 13,
           formatter: (v: number) => {
             const d = new Date(v);
@@ -65,30 +78,31 @@
               : hm;
           },
         },
-        axisLine: { lineStyle: { color: '#525252' } },
+        axisLine: { lineStyle: { color: axis } },
         splitLine: { show: false },
       },
       yAxis: {
         type: 'value',
-        name: unit,
-        nameTextStyle: { color: '#c6c6c6', fontSize: 13 },
-        axisLabel: { color: '#c6c6c6', fontSize: 13 },
-        axisLine: { lineStyle: { color: '#525252' } },
-        splitLine: { lineStyle: { color: '#525252' } },
+        name: displayUnit(unit),
+        nameTextStyle: { color: label, fontSize: 13 },
+        axisLabel: { color: label, fontSize: 13 },
+        axisLine: { lineStyle: { color: axis } },
+        splitLine: { lineStyle: { color: cssVar('--chart-grid', '#dde1e6') } },
       },
       tooltip: {
         trigger: 'axis',
-        backgroundColor: '#393939',
-        borderColor: '#525252',
-        textStyle: { color: '#f4f4f4', fontSize: 14 },
+        backgroundColor: cssVar('--chart-tooltip-bg', '#ffffff'),
+        borderColor: cssVar('--chart-tooltip-border', '#c6c6c6'),
+        textStyle: { color: cssVar('--text-primary', '#161616'), fontSize: 14 },
       },
       series: series.map((s, i) => ({
         name: s.name,
         type: 'line',
         data: s.points.map((p) => [p.timestamp, p.value]),
+        sampling: 'lttb',
         smooth: true,
         symbol: 'none',
-        lineStyle: { color: COLORS[i % COLORS.length], width: 2 },
+        lineStyle: { color: colors[i % colors.length], width: 2 },
       })),
     };
   }
@@ -115,6 +129,7 @@
   $effect(() => {
     void series.length;
     void series.map((s) => s.points.length);
+    void themeState.dark;
     refresh();
   });
 </script>

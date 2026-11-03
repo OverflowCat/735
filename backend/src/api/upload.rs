@@ -7,7 +7,7 @@ use crate::store::Store;
 
 /// POST /api/v1/monitor/data
 ///
-/// Accepts a batch of device reports (matching protocol.typ §2.2).
+/// Accepts a batch of device reports (matching protocol.typ 实时监测数据上报).
 /// Each report contains a device's current metrics.
 /// The store is updated and the on_data_ingested hook is called.
 pub async fn upload_data(
@@ -48,16 +48,12 @@ pub async fn upload_data(
 
         // Append each metric value to history.
         for m in &report.metrics {
-            let ts = m
-                .timestamp
-                .parse::<i64>()
-                .unwrap_or(Utc::now().timestamp_millis());
             store
                 .append_measurement(
                     &report.device,
                     &m.metric,
                     HistoricalPoint {
-                        timestamp: ts,
+                        timestamp: m.timestamp,
                         value: m.value,
                     },
                 )
@@ -78,7 +74,7 @@ pub async fn upload_data(
 
 /// POST /api/v1/device/heartbeat
 ///
-/// Accepts a batch of heartbeat reports (matching protocol.typ §2.3).
+/// Accepts a batch of heartbeat reports (matching protocol.typ 设备心跳上报).
 /// Updates device online/offline/fault status.
 pub async fn upload_heartbeat(
     State(store): State<Store>,
@@ -127,9 +123,9 @@ mod tests {
             "metrics": [{
                 "metric": "0102060301",
                 "name": "γ剂量率实时值",
-                "timestamp": "1792980000000",
+                "timestamp": 1792980000000i64,
                 "value": 45.0,
-                "unit": "nGy/h",
+                "unit": "nSv/h",
                 "alarm": false
             }]
         }]))
@@ -142,7 +138,7 @@ mod tests {
             "device": "2026012905",
             "type": "gamma",
             "status": "offline",
-            "timestamp": "1792980060000"
+            "timestamp": 1792980060000i64
         }]))
         .unwrap();
         let Json(response) = upload_heartbeat(State(store.clone()), Json(heartbeats)).await;

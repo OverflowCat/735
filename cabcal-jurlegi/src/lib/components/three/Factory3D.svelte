@@ -1,14 +1,24 @@
 <script lang="ts">
-  import { mapTheme } from '../map/map-theme';
-  import { onMount } from 'svelte';
+  import { mapTheme } from '../map/map-theme.svelte';
+  import { onMount, untrack } from 'svelte';
+  import {
+    SkeletonPlaceholder,
+    SkeletonText,
+    InlineNotification,
+  } from 'carbon-components-svelte';
   import * as THREE from 'three';
   import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
   import { appState, selectDevice } from '../../state/app-state.svelte';
   import type { Device } from '../../types/device';
   import { deviceSn, deviceStatusLabel } from '../../types/device';
+  import { formatMetricText } from '../../utils/format';
 
   let containerEl = $state<HTMLDivElement | null>(null);
   let initError = $state<string | null>(null);
+  let textureLoading = $state(
+    untrack(() => Boolean(appState.scene.backgroundImage)),
+  );
+  let textureFailed = $state(false);
   let renderer: THREE.WebGLRenderer | null = null;
   let threeScene: THREE.Scene | null = null;
   let camera: THREE.PerspectiveCamera | null = null;
@@ -25,23 +35,18 @@
   }
 
   function statusColor(status: string): number {
-    if (status === 'online') return 0x42be65;
-    if (status === 'offline') return 0xa8a8a8;
-    return 0xff8389;
+    if (status === 'online') return parseHexColor(mapTheme.online);
+    if (status === 'offline') return parseHexColor(mapTheme.offline);
+    return parseHexColor(mapTheme.danger);
   }
 
   function alarmColor(device: Device): number {
     const alarms = device.alarms ?? [];
-    if (alarms.length === 0) return 0x393939;
+    if (alarms.length === 0) return parseHexColor(mapTheme.building);
     const maxLevel = Math.max(...alarms.map((a) => a.level));
-    return maxLevel === 2 ? 0xff8389 : 0xf1c21b;
-  }
-
-  function formatMetricValue(v: number): string {
-    if (!Number.isFinite(v)) return '—';
-    const abs = Math.abs(v);
-    if (abs >= 10000) return v.toExponential(2);
-    return v.toFixed(1);
+    return maxLevel === 2
+      ? parseHexColor(mapTheme.danger)
+      : parseHexColor(mapTheme.warning);
   }
 
   function deviceValueText(device: Device): string {
@@ -51,7 +56,7 @@
         ? `γ${deviceSn(device).slice(-2)}`
         : `Rn ${device.id.slice(6)}`;
     if (!metric) return `${label} · ${deviceStatusLabel(device)}`;
-    return `${label} ${formatMetricValue(metric.value)} ${metric.unit}`;
+    return `${label} ${formatMetricText(metric.value, metric.unit)}`;
   }
 
   function parseHexColor(hexStr?: string, fallback = 0x475569): number {
@@ -108,7 +113,7 @@
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const r = 10;
-    ctx.fillStyle = alarm ? 'rgba(127, 29, 29, 0.92)' : '#262626';
+    ctx.fillStyle = alarm ? mapTheme.labelAlarmBackground : mapTheme.labelBackground;
     ctx.strokeStyle = alarm ? mapTheme.danger : mapTheme.accent;
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -124,7 +129,7 @@
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = mapTheme.text;
+    ctx.fillStyle = mapTheme.labelText;
     ctx.fillText(text, w / 2, h / 2 + 1);
 
     const texture = new THREE.CanvasTexture(canvas);
@@ -227,7 +232,17 @@
     root.add(ground);
     const bg = appState.scene.backgroundImage;
     if (bg) {
-      const texture = new THREE.TextureLoader().load(bg.src);
+      const texture = new THREE.TextureLoader().load(
+        bg.src,
+        () => {
+          textureLoading = false;
+        },
+        undefined,
+        () => {
+          textureLoading = false;
+          textureFailed = true;
+        },
+      );
       texture.colorSpace = THREE.SRGBColorSpace;
       labelTextures.push(texture);
       const plan = new THREE.Mesh(
@@ -404,7 +419,7 @@
       return;
     }
 
-    renderer.setClearColor(0x161616);
+    renderer.setClearColor(0xedf4fc);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     containerEl.appendChild(renderer.domElement);
     applyCameraSize();
@@ -468,7 +483,7 @@
   });
 
   $effect(() => {
-    // Rebuild markers/labels when scene layout or live readings change.
+    // Rebuild markers/labels when scene layout, live readings, or theme change.
     void appState.scene.objects?.length;
     void appState.scene.devices?.length;
     void appState.devices.length;
@@ -478,6 +493,7 @@
       void d.metrics?.[0]?.value;
       void d.metrics?.[0]?.unit;
     }
+    renderer?.setClearColor(parseHexColor(mapTheme.clear));
     buildScene();
   });
 </script>
@@ -494,17 +510,49 @@
 >
   {#if initError}
     <div class="three-error">{initError}</div>
+  {:else if textureLoading}
+    <div
+      class="three-loading"
+      role="status"
+      aria-label="正在加载三维平面图"
+      aria-busy="true"
+    >
+      <SkeletonPlaceholder width="100%" height="100%" />
+      <div class="three-loading-label">
+        <SkeletonText heading width="180px" />
+      </div>
+    </div>
+  {:else if textureFailed}
+    <div class="three-error">
+      <InlineNotification
+        kind="error"
+        title="平面图加载失败"
+        subtitle="请刷新重试。"
+        hideCloseButton
+      />
+    </div>
   {/if}
 </div>
 
 <style>
+  .three-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: var(--bg-primary);
+  }
+  .three-loading-label {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+  }
   .three-container {
     flex: 1;
     min-width: 0;
     min-height: 0;
     position: relative;
     overflow: hidden;
-    background: #161616;
+    background: var(--bg-primary);
     cursor: grab;
   }
 
@@ -524,8 +572,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #f4f4f4;
-    background: #161616;
+    color: var(--text-primary);
+    background: var(--bg-primary);
     font-size: 15px;
     pointer-events: none;
   }

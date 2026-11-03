@@ -2,7 +2,13 @@
   import Floorplan from 'carbon-icons-svelte/lib/Floorplan.svelte';
   import Layers from 'carbon-icons-svelte/lib/Layers.svelte';
 
-  import { Button, ContentSwitcher, Switch } from 'carbon-components-svelte';
+  import {
+    Button,
+    ContentSwitcher,
+    Switch,
+    SkeletonPlaceholder,
+    SkeletonText,
+  } from 'carbon-components-svelte';
   import Edit from 'carbon-icons-svelte/lib/Edit.svelte';
   import Checkmark from 'carbon-icons-svelte/lib/Checkmark.svelte';
   import {
@@ -22,21 +28,27 @@
 <div class="map-page" role="region" aria-label={currentMap.name}>
   <div class="map-content">
     <div class="map-main">
-      <div class="nav-controls">
-        <div class="view-toggle">
-          <ContentSwitcher
-            size="sm"
-            selectedIndex={appState.viewMode === '2d' ? 0 : 1}
-            aria-label="地图视图"
-            on:change={(e) => setViewMode(e.detail === 0 ? '2d' : '3d')}
-          >
-            <Switch text="2D"
-              ><span class="mode-label"><Floorplan size={16} />2D</span></Switch
-            ><Switch text="3D"
-              ><span class="mode-label"><Layers size={16} />3D</span></Switch
+      <div
+        class="nav-controls"
+        class:drawer-open={appState.selectedDeviceId !== null}
+      >
+        {#if !appState.editMode}
+          <div class="view-toggle">
+            <ContentSwitcher
+              size="sm"
+              selectedIndex={appState.viewMode === '2d' ? 0 : 1}
+              aria-label="地图视图"
+              on:change={(e) => setViewMode(e.detail === 0 ? '2d' : '3d')}
             >
-          </ContentSwitcher>
-        </div>
+              <Switch text="2D"
+                ><span class="mode-label"><Floorplan size={16} />2D</span
+                ></Switch
+              ><Switch text="3D"
+                ><span class="mode-label"><Layers size={16} />3D</span></Switch
+              >
+            </ContentSwitcher>
+          </div>
+        {/if}
         {#if appState.viewMode === '2d' && currentMap.id !== 'site'}
           <Button
             size="small"
@@ -55,6 +67,20 @@
       {#key appState.activeMapId}
         {#if appState.viewMode === '2d'}<FactoryMap />{:else}<Factory3D />{/if}
       {/key}
+      {#if !appState.devicesReady}
+        <div
+          class="map-loading"
+          role="status"
+          aria-label="正在加载设备数据"
+          aria-busy="true"
+        >
+          <SkeletonPlaceholder width="100%" height="100%" />
+          <div class="map-loading-label">
+            <SkeletonText heading width="180px" />
+            <SkeletonText width="240px" />
+          </div>
+        </div>
+      {/if}
       <DeviceDrawer />
     </div>
     {#if appState.editMode && appState.viewMode === '2d'}<EditPanel />{/if}
@@ -62,6 +88,17 @@
 </div>
 
 <style>
+  .map-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 12;
+    background: var(--bg-primary);
+  }
+  .map-loading-label {
+    position: absolute;
+    left: 24px;
+    top: 24px;
+  }
   .map-page {
     flex: 1;
     display: flex;
@@ -86,9 +123,21 @@
   .view-toggle {
     width: 144px;
   }
+  .nav-controls.drawer-open {
+    right: calc(var(--sidebar-width) + 16px);
+  }
+  @media (max-width: 800px) {
+    .nav-controls.drawer-open {
+      display: none;
+    }
+  }
   .view-toggle :global(.bx--content-switcher-btn) {
     min-width: 0;
     padding: 0 12px;
+  }
+  .view-toggle :global(.bx--content-switcher--selected) {
+    background: var(--accent);
+    color: #ffffff;
   }
   .mode-label {
     display: inline-flex;
@@ -124,7 +173,7 @@
       border-top: 1px solid var(--border);
     }
     .view-toggle {
-      width: 120px;
+      width: 144px;
     }
     .edit-button-label {
       display: none;

@@ -209,7 +209,8 @@ nmcli con up "有线连接 1" ifname enaphyt36i2
 
 - **设置报警限的参数个数是 `04`**（地址 1 + 阈值 3），不是 `02`。其余命令参数个数分别为 `1D 01` / `78 02` / `7A 01` / `7E 01`。
 - 3 字节科学计数值：`value = u16_be(b0,b1) / 1000.0 * 10^exp`。例：`22 EC 01` → 89.4；`03 E8 04` → 1.000e5。单位 nSv/h 或 nGy/h（报警限 nGy/h）。指数无符号 0–255，小于 0.001 无法表示。
-- 实现：`backend/src/gamma.rs` `RmsClient`（含单测）；轮询 `gamma_poller.rs` 只采集剂量率，指标码 `0102060301`（γ剂量率实时值，nGy/h）。CLI：`--gamma IP:4000` ×N、`--gamma-addr`（默认 `1`）、`--gamma-interval`、`--gamma-name`（默认 `γ剂量率监测仪`）。
+- 实现：`backend/src/gamma.rs` `RmsClient`（含单测）；轮询 `gamma_poller.rs` 只采集剂量率，指标码 `0102060301`（γ剂量率实时值，nSv/h）。CLI：`--gamma IP:4000` ×N、`--gamma-addr`（默认 `1`）、`--gamma-interval`、`--gamma-name`（默认 `γ剂量率监测仪`）。
+- 显示约定（2026-11-03 起）：γ 剂量率一律按 **nSv/h** 展示（不再用 nGy/h）；**>1000 nSv/h 时显示为 x.xx μSv/h**。前端统一由 `cabcal-jurlegi/src/lib/utils/format.ts`（`formatMetric` / `formatMetricText` / `displayUnit`，兼容旧数据里的 `nGy/h`）处理，新 UI 不要自行 `toFixed` 拼单位。
 
 **测数结论（2026-10-20）**：20/20 台 TCP `:4000` 按 RMS-200 均可读到剂量率（约 250–1550 nGy/h，`addr=0x01`）。旧版误用 `#READ_SPECTRUM` / `0x9090` 导致无回传。报警限多为 `1.000e5` nGy/h（`.20` 为 `4.880e4`）。联调：`python3 /opt/735/test_gamma_devices.py`。
 

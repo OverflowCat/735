@@ -39,9 +39,9 @@ const devices = [
     {
       metric: d.type === 'gamma' ? '0102060301' : '0102060302',
       name: d.name,
-      timestamp: String(Date.now()),
+      timestamp: Date.now(),
       value: d.value,
-      unit: d.type === 'gamma' ? 'nGy/h' : 'Bq/m³',
+      unit: d.type === 'gamma' ? 'nSv/h' : 'Bq/m3',
       alarm: d.alarm,
     },
   ],
@@ -159,7 +159,7 @@ try {
   assert.equal(await page.locator('[data-building-panel]').count(), 0);
   await page
     .locator('.map-navigation')
-    .getByRole('button', { name: '厂区总览', exact: true })
+    .getByRole('link', { name: '厂区总览', exact: true })
     .click();
   await panel.waitFor();
   if (process.env.MAP_SCREENSHOT)

@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import * as echarts from 'echarts';
   import type { HistoricalPoint } from '../../types/device';
+  import { cssVar, cssVarA, themeState } from '../../state/theme.svelte';
+  import { displayUnit, formatMetricText } from '../../utils/format';
 
   interface Props {
     history: HistoricalPoint[];
@@ -15,6 +17,8 @@
   let chart: echarts.ECharts | null = null;
 
   function buildOption() {
+    const label = cssVar('--chart-label', '#525252');
+    const axis = cssVar('--chart-axis', '#525252');
     const markLineData: any[] = [];
     if (alarmThresholds) {
       markLineData.push({
@@ -23,7 +27,7 @@
           formatter: `上限 ${alarmThresholds.up}`,
           position: 'insideEndTop',
         },
-        lineStyle: { color: '#ff8389', type: 'dashed' },
+        lineStyle: { color: cssVar('--danger', '#da1e28'), type: 'dashed' },
       });
       markLineData.push({
         yAxis: alarmThresholds.low,
@@ -31,7 +35,7 @@
           formatter: `下限 ${alarmThresholds.low}`,
           position: 'insideEndBottom',
         },
-        lineStyle: { color: '#f1c21b', type: 'dashed' },
+        lineStyle: { color: cssVar('--warning', '#8e6a00'), type: 'dashed' },
       });
     }
 
@@ -40,48 +44,49 @@
       xAxis: {
         type: 'time',
         axisLabel: {
-          color: '#a8a8a8',
+          color: label,
           fontSize: 11,
           formatter: (v: number) => {
             const d = new Date(v);
             return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
           },
         },
-        axisLine: { lineStyle: { color: '#525252' } },
+        axisLine: { lineStyle: { color: axis } },
         splitLine: { show: false },
       },
       yAxis: {
         type: 'value',
-        name: unit,
-        nameTextStyle: { color: '#a8a8a8', fontSize: 11 },
-        axisLabel: { color: '#a8a8a8', fontSize: 11 },
-        axisLine: { lineStyle: { color: '#525252' } },
-        splitLine: { lineStyle: { color: '#393939' } },
+        name: displayUnit(unit),
+        nameTextStyle: { color: label, fontSize: 11 },
+        axisLabel: { color: label, fontSize: 11 },
+        axisLine: { lineStyle: { color: axis } },
+        splitLine: { lineStyle: { color: cssVar('--chart-grid', '#dde1e6') } },
       },
       tooltip: {
         trigger: 'axis',
-        backgroundColor: '#393939',
-        borderColor: '#525252',
-        textStyle: { color: '#f4f4f4', fontSize: 13 },
+        backgroundColor: cssVar('--chart-tooltip-bg', '#ffffff'),
+        borderColor: cssVar('--chart-tooltip-border', '#c6c6c6'),
+        textStyle: { color: cssVar('--text-primary', '#161616'), fontSize: 13 },
         formatter: (params: any) => {
           const p = params[0];
           if (!p) return '';
           const d = new Date(p.value[0]);
           const time = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-          return `${time}<br/>${p.value[1].toFixed(2)} ${unit}`;
+          return `${time}<br/>${formatMetricText(p.value[1], unit)}`;
         },
       },
       series: [
         {
           type: 'line',
           data: history.map((p) => [p.timestamp, p.value]),
+          sampling: 'lttb',
           smooth: true,
           symbol: 'none',
-          lineStyle: { color: '#78a9ff', width: 2 },
+          lineStyle: { color: cssVar('--accent', '#0f62fe'), width: 2 },
           areaStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: 'rgba(120, 169, 255, 0.3)' },
-              { offset: 1, color: 'rgba(120, 169, 255, 0.02)' },
+              { offset: 0, color: cssVarA('--accent', '#0f62fe', 0.3) },
+              { offset: 1, color: cssVarA('--accent', '#0f62fe', 0.02) },
             ]),
           },
           markLine:
@@ -114,6 +119,7 @@
 
   $effect(() => {
     void history;
+    void themeState.dark;
     refresh();
   });
 </script>

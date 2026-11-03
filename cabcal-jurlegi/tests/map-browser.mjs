@@ -34,9 +34,9 @@ const device = {
     {
       metric: '0102060301',
       name: 'γ剂量率实时值',
-      timestamp: String(Date.now()),
+      timestamp: Date.now(),
       value: 328.5,
-      unit: 'nGy/h',
+      unit: 'nSv/h',
       alarm: false,
     },
   ],
@@ -98,7 +98,7 @@ try {
   assert.equal(await page.locator('[data-device]').count(), 15);
   assert.match(
     await page.locator('[data-device="gamma_12"]').textContent(),
-    /328.5 nGy\/h/,
+    /328.5 nSv\/h/,
   );
   assert.match(
     await page.locator('[data-device="2026012905"]').count().then(String),
@@ -106,7 +106,9 @@ try {
   );
   assert.match(
     (
-      await page.locator('.map-navigation [aria-current="page"]').innerText()
+      await page
+        .locator('.map-navigation [data-area][aria-current="page"]')
+        .innerText()
     ).replace(/\s/g, ''),
     /水冶厂27点位/,
   );
@@ -159,6 +161,11 @@ try {
     'monitoring drag must not move a pin',
   );
   await page.getByRole('button', { name: '编辑模式', exact: true }).click();
+  assert.equal(
+    await page.getByRole('tab', { name: '3D', exact: true }).count(),
+    0,
+    'view switch hidden while editing',
+  );
   await pin.locator('rect').click();
   await page.keyboard.press('ArrowRight');
   const moved = await position('gamma_12');
@@ -182,6 +189,11 @@ try {
   assert.equal(await position('gamma_12'), moved);
   await choose('C3 采区');
   await page.getByRole('button', { name: '编辑模式', exact: true }).click();
+  assert.equal(
+    await page.getByRole('tab', { name: '3D', exact: true }).count(),
+    0,
+    'view switch hidden while editing',
+  );
   await page.locator('[data-device="2026012905"] rect').click();
   const paired = await position('radon-37');
   await page.keyboard.press('ArrowDown');
@@ -206,6 +218,11 @@ try {
   await floor(1);
   // Readable captions must not overlap at their initial positions.
   await page.getByRole('button', { name: '编辑模式', exact: true }).click();
+  assert.equal(
+    await page.getByRole('tab', { name: '3D', exact: true }).count(),
+    0,
+    'view switch hidden while editing',
+  );
   await page.getByRole('button', { name: '重置点位', exact: true }).click();
   await page.getByRole('button', { name: '退出编辑', exact: true }).click();
   const boxes = await page.locator('.floor-label rect').evaluateAll((rects) =>
@@ -266,7 +283,7 @@ try {
   );
   await demo
     .locator('.map-navigation')
-    .getByRole('button', { name: 'C3 采区', exact: false })
+    .getByRole('link', { name: 'C3 采区', exact: false })
     .click();
   await demo.waitForFunction(
     () => document.querySelectorAll('[data-device]').length === 3,

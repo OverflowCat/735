@@ -22,7 +22,8 @@
     SelectItem,
     Checkbox,
     Button,
-    InlineLoading,
+    SkeletonText,
+    DataTableSkeleton,
     InlineNotification,
   } from 'carbon-components-svelte';
   import Analytics from 'carbon-icons-svelte/lib/Analytics.svelte';
@@ -35,7 +36,9 @@
   import { relativeQuery, type HistoryQuery } from '../../services/data-source';
   import type { HistoricalPoint, Device } from '../../types/device';
   import { deviceSn, deviceStatusLabel } from '../../types/device';
+  import { formatMetricText } from '../../utils/format';
   import ComparisonChart from '../charts/ComparisonChart.svelte';
+  import ChartSkeleton from '../charts/ChartSkeleton.svelte';
   import TimeRangePicker from '../charts/TimeRangePicker.svelte';
 
   const totalDevices = $derived(appState.devices.length);
@@ -82,13 +85,13 @@
     {
       value: '0102060301',
       label: 'γ剂量率实时值',
-      unit: 'nGy/h',
+      unit: 'nSv/h',
       types: ['gamma'],
     },
     {
       value: '0102060302',
       label: '氡及子体浓度实时值',
-      unit: 'Bq/m³',
+      unit: 'Bq/m3',
       types: ['radon'],
     },
   ];
@@ -174,7 +177,7 @@
   function metricValue(d: Device): string {
     const m = d.metrics[0];
     if (!m) return '-';
-    return `${m.value.toFixed(1)} ${m.unit}`;
+    return formatMetricText(m.value, m.unit);
   }
 </script>
 
@@ -192,7 +195,12 @@
       {#each [{ label: '设备总数', icon: Dashboard, value: totalDevices, status: '' }, { label: '在线', icon: CheckmarkFilled, value: onlineCount, status: 'online' }, { label: '离线', icon: WifiOff, value: offlineCount, status: 'offline' }, { label: '未上报', icon: Time, value: unreportedCount, status: 'unreported' }, { label: '故障', icon: ErrorFilled, value: faultCount, status: 'fault' }, { label: '报警设备', icon: WarningFilled, value: alarmCount, status: 'alarm' }] as stat}
         <Tile
           ><div class="summary-card {stat.status}">
-            <div class="summary-value">{stat.value}</div>
+            <div class="summary-value">
+              {#if appState.devicesReady}{stat.value}{:else}<SkeletonText
+                  heading
+                  width="56px"
+                />{/if}
+            </div>
             <div class="summary-label"><stat.icon size={16} />{stat.label}</div>
           </div></Tile
         >
@@ -217,60 +225,69 @@
           bind:value={searchQuery}
         />
       </div>
-      <div class="table-wrapper">
-        <DataTable
-          {headers}
-          rows={tableRows}
-          size="medium"
-          sortable
-          zebra
-          tableHeaderTranslateWithId={(id) =>
-            id === 'columnSortAscending' ? '升序排列' : '降序排列'}
-        >
-          <svelte:fragment slot="cell" let:row let:cell>
-            {#if cell.key === 'sn'}
-              <Button
-                kind="ghost"
-                size="small"
-                icon={ArrowRight}
-                on:click={() => selectDevice(String(row.id))}
-                ><span class="mono">{cell.value}</span></Button
-              >
-            {:else if cell.key === 'status'}
-              <Tag
-                size="sm"
-                icon={cell.value === '在线'
-                  ? CheckmarkFilled
-                  : cell.value === '故障'
-                    ? ErrorFilled
-                    : cell.value === '离线'
-                      ? WifiOff
-                      : Time}
-                type={cell.value === '在线'
-                  ? 'green'
-                  : cell.value === '故障'
-                    ? 'red'
-                    : 'gray'}>{cell.value}</Tag
-              >
-            {:else if cell.key === 'alarm'}
-              {#if cell.value}<Tag
+      <div class="table-wrapper" aria-busy={!appState.devicesReady}>
+        {#if !appState.devicesReady}<DataTableSkeleton
+            columns={5}
+            rows={8}
+            size="medium"
+            showHeader={false}
+            showToolbar={false}
+          />{:else}
+          <DataTable
+            {headers}
+            rows={tableRows}
+            size="medium"
+            sortable
+            zebra
+            tableHeaderTranslateWithId={(id) =>
+              id === 'columnSortAscending' ? '升序排列' : '降序排列'}
+          >
+            <svelte:fragment slot="cell" let:row let:cell>
+              {#if cell.key === 'sn'}
+                <Button
+                  kind="ghost"
+                  size="small"
+                  icon={ArrowRight}
+                  on:click={() => selectDevice(String(row.id))}
+                  ><span class="mono">{cell.value}</span></Button
+                >
+              {:else if cell.key === 'status'}
+                <Tag
                   size="sm"
-                  icon={WarningFilled}
-                  type={cell.value === 2 ? 'red' : 'magenta'}
-                  >{cell.value === 2 ? '二级报警' : '一级报警'}</Tag
-                >{:else}<span class="muted">无报警</span>{/if}
-            {:else if cell.key === 'type'}<span class="icon-label"
-                >{#if cell.value === 'γ剂量率'}<Activity
-                    size={16}
-                  />{:else}<Chemistry size={16} />{/if}{cell.value}</span
-              >
-            {:else}<span class:mono={cell.key === 'reading'}>{cell.value}</span
-              >{/if}
-          </svelte:fragment>
-        </DataTable>
-        {#if !filteredDevices.length}<div class="empty-state">
-            未找到匹配设备，请调整搜索条件。
-          </div>{/if}
+                  icon={cell.value === '在线'
+                    ? CheckmarkFilled
+                    : cell.value === '故障'
+                      ? ErrorFilled
+                      : cell.value === '离线'
+                        ? WifiOff
+                        : Time}
+                  type={cell.value === '在线'
+                    ? 'green'
+                    : cell.value === '故障'
+                      ? 'red'
+                      : 'gray'}>{cell.value}</Tag
+                >
+              {:else if cell.key === 'alarm'}
+                {#if cell.value}<Tag
+                    size="sm"
+                    icon={WarningFilled}
+                    type={cell.value === 2 ? 'red' : 'magenta'}
+                    >{cell.value === 2 ? '二级报警' : '一级报警'}</Tag
+                  >{:else}<span class="muted">无报警</span>{/if}
+              {:else if cell.key === 'type'}<span class="icon-label"
+                  >{#if cell.value === 'γ剂量率'}<Activity
+                      size={16}
+                    />{:else}<Chemistry size={16} />{/if}{cell.value}</span
+                >
+              {:else}<span class:mono={cell.key === 'reading'}
+                  >{cell.value}</span
+                >{/if}
+            </svelte:fragment>
+          </DataTable>
+          {#if !filteredDevices.length}<div class="empty-state">
+              未找到匹配设备，请调整搜索条件。
+            </div>{/if}
+        {/if}
       </div>
     </section>
 
@@ -303,24 +320,27 @@
             aria-label="选择对比设备，最多6台"
           >
             <p class="field-label">选择设备（最多 6 台）</p>
-            {#each compatibleDevices as d}
-              <Checkbox
-                labelText={deviceSn(d)}
-                title={d.name}
-                checked={selectedForCompare.includes(d.id)}
-                disabled={selectedForCompare.length >= 6 &&
-                  !selectedForCompare.includes(d.id)}
-                on:change={() => toggleCompareDevice(d.id)}
-              />
-            {/each}
+            {#if !appState.devicesReady}<SkeletonText
+                paragraph
+                lines={6}
+              />{:else}
+              {#each compatibleDevices as d}
+                <Checkbox
+                  labelText={deviceSn(d)}
+                  title={d.name}
+                  checked={selectedForCompare.includes(d.id)}
+                  disabled={selectedForCompare.length >= 6 &&
+                    !selectedForCompare.includes(d.id)}
+                  on:change={() => toggleCompareDevice(d.id)}
+                />
+              {/each}
+            {/if}
           </div>
         </div>
         <div class="comparison-main">
           <TimeRangePicker query={compareQuery} onchange={onRangeChange} />
           <div class="chart-area">
-            {#if compareLoading}<div class="empty-state">
-                <InlineLoading description="正在加载对比数据…" />
-              </div>
+            {#if compareLoading}<ChartSkeleton label="正在加载对比数据" />
             {:else if compareError}<InlineNotification
                 kind="error"
                 title="历史数据暂不可用"
@@ -392,6 +412,9 @@
   }
   .summary-value {
     font: 36px/44px var(--font-mono);
+    min-height: 44px;
+    display: flex;
+    align-items: center;
     color: var(--text-primary);
   }
   .summary-label {

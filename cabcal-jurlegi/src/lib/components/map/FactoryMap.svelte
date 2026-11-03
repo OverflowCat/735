@@ -1,6 +1,12 @@
 <script lang="ts">
-  import { mapTheme } from './map-theme';
-  import { Button, Tag } from 'carbon-components-svelte';
+  import { mapTheme } from './map-theme.svelte';
+  import {
+    Button,
+    Tag,
+    SkeletonPlaceholder,
+    SkeletonText,
+    InlineNotification,
+  } from 'carbon-components-svelte';
   import FitToScreen from 'carbon-icons-svelte/lib/FitToScreen.svelte';
   import { untrack } from 'svelte';
   import {
@@ -25,6 +31,7 @@
     siteInlinePlacements,
   } from '../../data/floorplans/maps';
   import BuildingDevicePanel from './BuildingDevicePanel.svelte';
+  import { formatMetric, formatMetricText } from '../../utils/format';
 
   let svgEl = $state<SVGSVGElement | null>(null);
   let containerWidth = $state(0);
@@ -64,6 +71,9 @@
   let viewBox = $state({ x: 0, y: 0, ...initialSize });
   const isFloorplan = $derived(!!appState.scene.backgroundImage);
   let imageFailed = $state(false);
+  let imageLoading = $state(
+    untrack(() => Boolean(appState.scene.backgroundImage)),
+  );
 
   function resetView() {
     viewBox = { x: 0, y: 0, w: appState.scene.width, h: appState.scene.height };
@@ -101,18 +111,11 @@
     return maxLevel === 2 ? mapTheme.danger : mapTheme.warning;
   }
 
-  function formatMetricValue(v: number): string {
-    if (!Number.isFinite(v)) return '—';
-    const abs = Math.abs(v);
-    if (abs >= 10000) return v.toExponential(2);
-    return v.toFixed(1);
-  }
-
-  /** Engineering readout with the metric's own unit. */
+  /** Engineering readout with the metric's display unit (nSv/h, μSv/h above 1000). */
   function deviceValueText(device: Device): string {
     const metric = device.metrics?.[0];
     if (!metric) return '—';
-    return `${formatMetricValue(metric.value)} ${metric.unit}`;
+    return formatMetricText(metric.value, metric.unit);
   }
 
   /** Longer engineering-style label (text mode). */
@@ -120,7 +123,7 @@
     const metric = device.metrics?.[0];
     const typeLabel = device.type === 'gamma' ? 'γ' : 'Rn';
     if (!metric) return `${deviceSn(device)}, ${typeLabel}`;
-    return `${deviceSn(device)} ${formatMetricValue(metric.value)}, ${typeLabel}`;
+    return `${deviceSn(device)} ${formatMetric(metric.value, metric.unit).value}, ${typeLabel}`;
   }
 
   function pointsToString(pts?: [number, number][]): string {
@@ -382,8 +385,24 @@
       title="显示完整平面图">适应画面</Button
     >
   </div>
-  {#if imageFailed}<div class="image-error" role="alert">
-      平面图加载失败，请刷新重试
+  {#if imageLoading}<div
+      class="map-image-skeleton"
+      role="status"
+      aria-label="正在加载平面图"
+      aria-busy="true"
+    >
+      <SkeletonPlaceholder width="100%" height="100%" />
+      <div class="image-loading-label">
+        <SkeletonText heading width="160px" /><SkeletonText width="220px" />
+      </div>
+    </div>{/if}
+  {#if imageFailed}<div class="image-error">
+      <InlineNotification
+        kind="error"
+        title="平面图加载失败"
+        subtitle="请刷新重试。"
+        hideCloseButton
+      />
     </div>{/if}
   {#if appState.editMode}
     <div class="edit-toolbar">
@@ -424,7 +443,7 @@
           dy="6"
           stdDeviation="4"
           flood-color="#000000"
-          flood-opacity="0.4"
+          flood-opacity="0.1"
         />
       </filter>
     </defs>
@@ -459,7 +478,11 @@
         width={bg.width}
         height={bg.height}
         preserveAspectRatio="none"
-        onerror={() => (imageFailed = true)}
+        onload={() => (imageLoading = false)}
+        onerror={() => {
+          imageLoading = false;
+          imageFailed = true;
+        }}
         pointer-events="none"
       />
     {/if}
@@ -656,14 +679,14 @@
                 width="98"
                 height="40"
                 rx="0"
-                fill="#161616"
+                fill={mapTheme.labelBackground}
                 stroke={alarm || statusColor(device.status)}
                 stroke-width="1.5"
               />
               <text
                 y="-4"
                 text-anchor="middle"
-                fill="#f4f4f4"
+                fill={mapTheme.labelText}
                 font-size="12"
                 font-weight="700"
                 >{shortLabel(device)}
@@ -678,7 +701,7 @@
               <text
                 y="12"
                 text-anchor="middle"
-                fill={alarm || '#c6c6c6'}
+                fill={alarm || mapTheme.labelText}
                 font-size="11"
                 >{device.unreported
                   ? '— 暂无数据'
@@ -855,6 +878,17 @@
 </div>
 
 <style>
+  .map-image-skeleton {
+    position: absolute;
+    inset: 0;
+    z-index: 9;
+    background: var(--bg-primary);
+  }
+  .image-loading-label {
+    position: absolute;
+    left: 24px;
+    top: 24px;
+  }
   .fit-view {
     position: absolute;
     left: 16px;
@@ -867,18 +901,15 @@
     top: 55px;
     right: 12px;
     z-index: 10;
-    background: #7f1d1d;
-    color: #fff;
-    padding: 10px;
   }
   .floor-label {
     font-family: 'Microsoft YaHei', sans-serif;
   }
   .floorplan {
-    background: #e2e8f0;
+    background: #edf4fc;
   }
   .map-container.floorplan {
-    background: #e2e8f0;
+    background: #edf4fc;
   }
   .floor-label text {
     pointer-events: none;
@@ -1014,7 +1045,7 @@
   }
 
   .edit-grid line {
-    stroke: rgba(255, 255, 255, 0.08);
+    stroke: rgba(15, 98, 254, 0.12);
     stroke-width: 1;
   }
 
@@ -1035,10 +1066,10 @@
     align-items: center;
     gap: 10px;
     padding: 8px 14px;
-    background: #262626;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
     border-radius: 0;
-    color: #fff;
+    color: var(--text-primary);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     pointer-events: none;
   }
@@ -1055,8 +1086,8 @@
     z-index: 5;
     padding: 4px 10px;
     border-radius: 4px;
-    background: #262626;
-    color: #94a3b8;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
     font-size: 12px;
     font-family: 'Courier New', monospace;
     pointer-events: none;

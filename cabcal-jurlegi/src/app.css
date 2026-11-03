@@ -1,4 +1,50 @@
 :root {
+  color-scheme: light;
+  --bg-primary: #f4f7fc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e8f0fb;
+  --bg-card: #ffffff;
+  --border: #d6e2f0;
+  --border-light: #a6c8ff;
+  --text-primary: #161616;
+  --text-secondary: #525252;
+  --text-muted: #6f6f6f;
+  --accent: #0f62fe;
+  --accent-hover: #0043ce;
+  --accent-bg: #edf5ff;
+  --danger: #da1e28;
+  --danger-bg: #fff1f1;
+  --warning: #8e6a00;
+  --warning-bg: #fff8e1;
+  --success: #198038;
+  --success-bg: #defbe6;
+  --alarm-l1: #8e6a00;
+  --alarm-l1-bg: #fff8e1;
+  --alarm-l2: #da1e28;
+  --alarm-l2-bg: #fff1f1;
+  --status-online: #198038;
+  --status-offline: #6f6f6f;
+  --status-fault: #da1e28;
+  --chart-label: #525252;
+  --chart-axis: #525252;
+  --chart-grid: #dde1e6;
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: #c6c6c6;
+  --font-sans:
+    'IBM Plex Sans', 'IBM Plex Sans SC', 'PingFang SC', 'Microsoft YaHei',
+    sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+  --radius: 0;
+  --radius-lg: 0;
+  --shadow: 0 2px 8px #0043ce14;
+  --shadow-lg: 0 8px 28px #0043ce24;
+  --transition: 110ms ease;
+  --sidebar-width: 432px;
+  font-family: var(--font-sans);
+}
+
+/* Night theme (20:00–04:00): the original dark Carbon palette. */
+:root[theme='g100'] {
   color-scheme: dark;
   --bg-primary: #161616;
   --bg-secondary: #262626;
@@ -25,18 +71,17 @@
   --status-online: #42be65;
   --status-offline: #a8a8a8;
   --status-fault: #ff8389;
-  --font-sans:
-    'IBM Plex Sans', 'IBM Plex Sans SC', 'PingFang SC', 'Microsoft YaHei',
-    sans-serif;
-  --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
-  --radius: 0;
-  --radius-lg: 0;
+  --chart-label: #a8a8a8;
+  --chart-axis: #525252;
+  --chart-grid: #393939;
+  --chart-tooltip-bg: #393939;
+  --chart-tooltip-border: #525252;
   --shadow: 0 2px 6px #0000004d;
   --shadow-lg: 0 8px 24px #00000066;
-  --transition: 110ms ease;
-  --nav-height: 48px;
-  --sidebar-width: 432px;
-  font-family: var(--font-sans);
+}
+
+:root[theme='g100'] :focus-visible {
+  outline-color: #ffffff;
 }
 
 * {
@@ -67,7 +112,7 @@ button:disabled {
   cursor: not-allowed;
 }
 :focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid #0f62fe;
   outline-offset: -2px;
 }
 .mono {
@@ -82,6 +127,9 @@ button:disabled {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
+  background: #a8a8a8;
+}
+:root[theme='g100'] ::-webkit-scrollbar-thumb {
   background: #6f6f6f;
 }
 
@@ -100,6 +148,10 @@ button:disabled {
   color: var(--status-online);
 }
 .badge.offline {
+  background: #e0e0e0;
+  color: #525252;
+}
+:root[theme='g100'] .badge.offline {
   background: #525252;
   color: #f4f4f4;
 }
@@ -111,4 +163,12 @@ button:disabled {
 .badge.alarm-l1 {
   background: var(--warning-bg);
   color: var(--warning);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bx--skeleton__placeholder::before,
+  .bx--skeleton__text::before,
+  .bx--skeleton *::before {
+    animation: none;
+  }
 }
