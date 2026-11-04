@@ -259,10 +259,12 @@
     box-shadow: inset 0 0 0 2px var(--accent);
   }
   .brand-logo {
-    height: 28px;
+    height: 44px;
     width: auto;
+    max-width: 152px;
     margin: 0 4px 0 4px;
     flex-shrink: 0;
+    object-fit: contain;
   }
   .data-indicator {
     min-width: 0;

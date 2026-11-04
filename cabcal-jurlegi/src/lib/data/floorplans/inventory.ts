@@ -30,12 +30,14 @@ export const gammaInventory = [
     id,
     assetSn: `20260129${String(Number(ip.split('.').at(-1)) - 10).padStart(2, '0')}`,
     name: '水冶厂 γ剂量率监测仪',
+    station: '水冶厂',
     radonNode: undefined as number | undefined,
   })),
   ...configuredDevices.map((entry) => ({
     id: entry.id,
     assetSn: entry.id,
     name: entry.name,
+    station: entry.station,
     radonNode: entry.radonNode,
   })),
 ];
@@ -68,6 +70,7 @@ function placeholder(
   id: string,
   name: string,
   type: Device['type'],
+  station: string,
   assetSn?: string,
 ): Device {
   return {
@@ -75,7 +78,7 @@ function placeholder(
     name,
     type,
     assetSn,
-    station: 'STATION-01',
+    station,
     status: 'offline',
     unreported: true,
     lastUpdate: '',
@@ -84,10 +87,24 @@ function placeholder(
   };
 }
 
+/** Radon station follows the 厂房 of the γ device whose bus it shares. */
+const stationByNode = new Map<number, string>();
+for (const [asset, node] of radonPairs) {
+  const station = gammaInventory.find((g) => g.assetSn === asset)?.station;
+  if (station) stationByNode.set(node, station);
+}
+
 export const installedDevices: Device[] = [
-  ...gammaInventory.map((d) => placeholder(d.id, d.name, 'gamma', d.assetSn)),
+  ...gammaInventory.map((d) =>
+    placeholder(d.id, d.name, 'gamma', d.station, d.assetSn),
+  ),
   ...[...new Set(radonPairs.values())].map((node) =>
-    placeholder(`radon-${node}`, `空气测氡仪-${node}`, 'radon'),
+    placeholder(
+      `radon-${node}`,
+      `空气测氡仪-${node}`,
+      'radon',
+      stationByNode.get(node) ?? '水冶厂',
+    ),
   ),
 ];
 

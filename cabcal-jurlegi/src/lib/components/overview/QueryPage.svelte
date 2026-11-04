@@ -3,7 +3,6 @@
   import DocumentExport from 'carbon-icons-svelte/lib/DocumentExport.svelte';
   import Activity from 'carbon-icons-svelte/lib/Activity.svelte';
   import Chemistry from 'carbon-icons-svelte/lib/Chemistry.svelte';
-  import Location from 'carbon-icons-svelte/lib/Location.svelte';
   import Analytics from 'carbon-icons-svelte/lib/Analytics.svelte';
   import ChartMultitype from 'carbon-icons-svelte/lib/ChartMultitype.svelte';
   import DataBase from 'carbon-icons-svelte/lib/DataBase.svelte';
@@ -271,7 +270,6 @@
           按监测类型、聚合粒度与时间范围查询历史测量数据，并支持导出。
         </p>
       </div>
-      <Tag type="outline" icon={Location}>STATION-01 · 新疆站点</Tag>
     </div>
 
     <section class="board" aria-label="数据查询">

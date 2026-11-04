@@ -17,6 +17,11 @@ pub struct DeviceEntry {
     /// RMS-200 display-unit address (0~FF). Defaults to 1.
     #[serde(default = "default_gamma_addr")]
     pub gamma_addr: u8,
+    /// 厂房编号 this device belongs to, e.g. "C35".
+    /// Optional for backward compatibility: old inventory files without
+    /// this field fall back to the CLI `--station` value.
+    #[serde(default)]
+    pub station: String,
     /// Optional HS05G radon node id on the shared RS485 bus.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub radon_node: Option<u8>,
@@ -103,8 +108,8 @@ mod tests {
     #[test]
     fn parse_device_list() {
         let json = r#"[
-            {"id":"2026012903","addr":"192.168.10.13:9013","radonNode":36},
-            {"id":"2026012914","addr":"192.168.10.24:9024"}
+            {"id":"2026012903","addr":"192.168.10.13:9013","station":"C35","radonNode":36},
+            {"id":"2026012914","addr":"192.168.10.24:9024","station":"C35"}
         ]"#;
         let list: Vec<DeviceEntry> = serde_json::from_str(json).unwrap();
         assert_eq!(list.len(), 2);
@@ -112,5 +117,15 @@ mod tests {
         assert_eq!(list[0].radon_node, Some(36));
         assert_eq!(list[0].radon_device_id().as_deref(), Some("radon-36"));
         assert_eq!(list[1].radon_node, None);
+    }
+
+    #[test]
+    fn parse_legacy_device_list_without_station() {
+        // Old inventory format has no `station`; it must still load and
+        // leave station empty so main falls back to --station.
+        let json = r#"[{"id":"2026012903","addr":"192.168.10.13:9013","radonNode":36}]"#;
+        let list: Vec<DeviceEntry> = serde_json::from_str(json).unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].station, "");
     }
 }

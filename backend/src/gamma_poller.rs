@@ -21,7 +21,7 @@ pub struct GammaConfig {
     pub source_id: String,
     /// Polling interval in seconds.
     pub interval_secs: u64,
-    /// Station identifier for reports.
+    /// Station (厂房编号) for reports.
     pub station: String,
     /// Human-readable device name.
     pub device_name: String,

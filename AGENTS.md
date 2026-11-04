@@ -150,10 +150,11 @@ nmcli con up "有线连接 1" ifname enaphyt36i2
 | 项 | 值 |
 |----|-----|
 | backend | `systemd` 单元 `735-backend.service`（enabled） |
-| 命令 | `/opt/735/bin/backend --listen 0.0.0.0:3000 --station STATION-01 --data-dir /opt/735/data --gamma-interval 30 --gamma-addr 1 --devices /opt/735/devices.json` + 旧网段 `--gamma 192.168.10.X:4000` ×20 |
+| 命令 | `/opt/735/bin/backend --listen 0.0.0.0:3000 --station 水冶厂 --data-dir /opt/735/data --gamma-interval 30 --gamma-addr 1 --devices /opt/735/devices.json` + 旧网段 `--gamma 192.168.10.X:4000` ×20 |
 | 前端 | `python3 /opt/735/serve.py` → `:8080`（`735-frontend.service`） |
 | 联调脚本 | `python3 /opt/735/test_gamma_devices.py [IP…]` |
 | 有线地址 | `enaphyt36i2`：`192.168.10.2/24` + `192.168.10.10/24`（NetworkManager 已持久化）；`enaphyt36i3` 备用口 = DHCP，无静态地址、无主机路由 |
+| station 语义 | `station` = **厂房编号**（`C35`/`C19`/`C3`/`JZGL`（集中过滤厂房）；旧 20 台 `--gamma` 设备为 `水冶厂`）。`devices.json` 每台设备可带 `station` 字段；缺省或旧格式文件回落到 CLI `--station`（旧 `--gamma`/`--hub` 模式的兜底） |
 
 ### 设备清单（SN）与氡共享 485（2026-10-21，2026-10-26 更新）
 
@@ -178,9 +179,9 @@ nmcli con up "有线连接 1" ifname enaphyt36i2
 | c19 | 2026012928 | 192.168.10.38:4000 | — | **online** |
 | c3 | 2026012905 | 192.168.10.15:4000 | **37** | **online**（氡 37 = 744 Bq/m³） |
 | c3 | 2026012917 | 192.168.10.27:4000 | — | **online** |
-| 集中过滤厂房 | 2026012918 | 192.168.10.28:4000 | — | **online** |
-| 集中过滤厂房 | 2026012924 | 192.168.10.34:4000 | — | **online** |
-| 集中过滤厂房 | 2026012929 | 192.168.10.39:4000 | — | **online** |
+| JZGL | 2026012918 | 192.168.10.28:4000 | — | **online** |
+| JZGL | 2026012924 | 192.168.10.34:4000 | — | **online** |
+| JZGL | 2026012929 | 192.168.10.39:4000 | — | **online** |
 
 氡设备 id 为 `radon-<node>`（如 `radon-36`），指标码 `0102060302`。前端默认地图位次见 `cabcal-jurlegi/src/lib/data/mock/scene.ts`。
 
@@ -221,6 +222,7 @@ nmcli con up "有线连接 1" ifname enaphyt36i2
 - **不要用 `pkill` 重启 backend**：进程会以退出码 0 结束，`Restart=on-failure` 不会拉起。改用 `sudo systemctl restart 735-backend`。
 - 节点上 `sudo` 需要密码（用户 `yy` 在 sudo 组，无 NOPASSWD）。服务文件 root 所有。
 - 校验：`curl http://127.0.0.1:3000/api/v1/devices`；`journalctl -u 735-backend` 有 `registered device poller` / `device summary` / `dose_rate=` 行。
+- `station` 厂房编号语义已于 2026-11-03 部署（见 `docs/部署记录-2026-11-03.md`）：节点 `devices.json` 已带 `station` 字段，`run-backend.sh` 的 `--station` 为 `水冶厂`；旧格式 devices.json（无 station）仍可启动，回落 `--station`。
 
 ## 注意事项
 

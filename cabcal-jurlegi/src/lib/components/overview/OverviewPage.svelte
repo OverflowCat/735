@@ -8,7 +8,6 @@
   import DataBase from 'carbon-icons-svelte/lib/DataBase.svelte';
   import ChartMultitype from 'carbon-icons-svelte/lib/ChartMultitype.svelte';
   import ArrowRight from 'carbon-icons-svelte/lib/ArrowRight.svelte';
-  import Location from 'carbon-icons-svelte/lib/Location.svelte';
   import Activity from 'carbon-icons-svelte/lib/Activity.svelte';
   import Chemistry from 'carbon-icons-svelte/lib/Chemistry.svelte';
 
@@ -189,7 +188,6 @@
         <h1>监测总览</h1>
         <p class="page-description">设备运行状态、最新测量值与历史趋势。</p>
       </div>
-      <Tag type="outline" icon={Location}>STATION-01 · 新疆站点</Tag>
     </div>
     <div class="summary-row">
       {#each [{ label: '设备总数', icon: Dashboard, value: totalDevices, status: '' }, { label: '在线', icon: CheckmarkFilled, value: onlineCount, status: 'online' }, { label: '离线', icon: WifiOff, value: offlineCount, status: 'offline' }, { label: '未上报', icon: Time, value: unreportedCount, status: 'unreported' }, { label: '故障', icon: ErrorFilled, value: faultCount, status: 'fault' }, { label: '报警设备', icon: WarningFilled, value: alarmCount, status: 'alarm' }] as stat}

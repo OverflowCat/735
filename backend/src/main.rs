@@ -31,7 +31,8 @@ struct Cli {
     #[arg(long, default_value = "30")]
     hub_interval: u64,
 
-    /// Station name for HS05G reports
+    /// Fallback station (厂房编号) for legacy --gamma/--hub pollers;
+    /// devices.json entries carry their own per-device station.
     #[arg(long, default_value = "STATION-01")]
     station: String,
 
@@ -108,7 +109,12 @@ async fn main() -> anyhow::Result<()> {
                 addr: entry.addr.clone(),
                 source_id: entry.id.clone(),
                 interval_secs: cli.gamma_interval,
-                station: cli.station.clone(),
+                // Old inventory files may lack `station`; fall back to --station.
+                station: if entry.station.is_empty() {
+                    cli.station.clone()
+                } else {
+                    entry.station.clone()
+                },
                 device_name: entry.display_name(),
                 device_addr: entry.gamma_addr,
             };

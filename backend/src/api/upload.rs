@@ -118,7 +118,7 @@ mod tests {
     async fn reports_and_history_use_device_id_without_device_code() {
         let store: Store = Arc::new(MemoryStore::new());
         let reports = serde_json::from_value(serde_json::json!([{
-            "station": "STATION-01",
+            "station": "C3",
             "device": "2026012905",
             "metrics": [{
                 "metric": "0102060301",
@@ -134,7 +134,7 @@ mod tests {
         assert_eq!(response.code, 200);
 
         let heartbeats = serde_json::from_value(serde_json::json!([{
-            "station": "STATION-01",
+            "station": "C3",
             "device": "2026012905",
             "type": "gamma",
             "status": "offline",

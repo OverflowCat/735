@@ -52,6 +52,8 @@
   onMount(() => {
     syncHash();
     window.addEventListener('hashchange', syncHash);
+    // TEMP(dev-only): memory-leak test hook, removed after diagnostics.
+    if (import.meta.env.DEV) (window as any).__tick = () => loadDevices();
     void loadDevices();
     const refreshTimer = window.setInterval(() => {
       if (!document.hidden) void loadDevices();

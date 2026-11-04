@@ -411,6 +411,15 @@
   onMount(() => {
     if (!containerEl) return;
 
+    // TEMP(dev-only): memory-leak diagnostics, removed after testing.
+    if (import.meta.env.DEV)
+      (window as any).__gl = () => ({
+        ...renderer?.info.memory,
+        programs: renderer?.info.programs?.length,
+        labelTextures: labelTextures.length,
+        sceneRoots: threeScene?.children.length,
+      });
+
     try {
       renderer = createRenderer();
     } catch (err) {

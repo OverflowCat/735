@@ -5,3 +5,4 @@ dist
 /telemetry-bench
 /ui/ui-735
 *.pdf
+/backup/data
