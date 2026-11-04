@@ -1,16 +1,21 @@
 #set document(title: "735通信协议", author: "北京博瑞赛科技有限责任公司")
-#set page(paper: "a5", margin: (x: 1.2cm, y: 1.2cm), numbering: "1")
-#set text(size: 10.5pt, lang: "zh")
+#set page(paper: "a5", margin: (x: 1.2cm, y: 1.2cm))
+#set text(size: 10.5pt, lang: "zh", font: ("IBM Plex Sans", "IBM Plex Sans SC"))
 #set heading(numbering: "1.1")
 #set par(justify: true, leading: 0.65em)
 
+// 代码统一使用 IBM Plex Mono，CJK 回落到 IBM Plex Sans SC
+#show raw: set text(font: ("IBM Plex Mono", "IBM Plex Sans SC"))
+#show raw.where(block: false): it => box(
+  fill: rgb("#f4f4f6"), inset: (x: 3pt), outset: (y: 3pt), radius: 2pt,
+  text(size: 0.88em, it)
+)
 #show raw.where(block: true): it => block(
-  fill: rgb("#f4f4f4"), inset: 8pt, radius: 3pt, width: 100%,
-  text(font: "DejaVu Sans Mono", size: 9pt, it)
+  fill: rgb("#f4f4f6"), inset: 8pt, radius: 3pt, width: 100%,
+  text(size: 9pt, it)
 )
 
 #let accent = rgb("#1f6feb")
-#let accent-light = rgb("#eaf3ff")
 #let stripe = rgb("#f6f8fa")
 
 #let ztable(columns: none, align: none, header: none, rows) = table(
@@ -21,45 +26,33 @@
   ..rows
 )
 
-#let callout(
-  title: "注意",
-  color: rgb("#fff8e1"),
-  bar: rgb("#e0a800"),
-  body,
-) = block(
-  fill: color,
-  stroke: (left: 3pt + bar),
-  inset: 10pt,
-  radius: 4pt,
-  width: 100%,
-)[
-  #text(weight: "bold", fill: bar)[#title]
-  #linebreak()
-  #body
+// 封面（不编号）
+#align(center + horizon)[
+  #text(size: 28pt, weight: "bold", tracking: 2pt)[735通信协议]
+  #v(1.2em)
+  #line(length: 40%, stroke: 0.8pt)
+  #v(1.2em)
+  #text(size: 13pt)[数据通信协议设计说明书]
+  #v(5em)
+  #text(size: 10.5pt)[版本：V1.1]
+  #v(10em)
+  #text(size: 12pt)[北京博瑞赛科技有限责任公司]
 ]
-
-#align(center)[
-  #text(size: 13pt, weight: "bold")[数据通信协议设计说明书]
-  #v(0.6em)
-  #text(size: 10pt)[版本：V0.2#v(1em)北京博瑞赛科技有限责任公司]
-]
-
-#v(1em)
-#line(length: 100%, stroke: 0.6pt)
+#pagebreak()
+#set page(numbering: "1")
+#counter(page).update(1)
 
 == 概述
 
-系统数据通信仅保留*单向上报（现场 → 平台）*：
+现场设备通过网关向平台上报实时监测数据、报警信息和设备状态。
 
-- 现场设备（γ剂量率监测仪、空气测氡仪等）通过网关将实时监测数据、报警状态与设备在线状态上报至平台。
-- 报警不作为独立事件单独上报，合并在实时数据上报中，随监测数据一同携带 `alarm` 对象（等级、原因、阈值、联动动作），减少接口数量与网络交互次数。
-- 报警阈值的维护与判定、通风联动等现场闭环控制，均由现场网关/控制软件自主完成，平台不下发任何控制或参数覆盖指令。
-- 设备安装位置等静态台账信息通过其他方式在平台侧配置维护，不在本通信协议的数据接口中携带。
-- 一个网关下挂多台设备时，一次请求可合并上报；`payload` 按设备拆分为数组，每台设备下可携带多条数据，兼容断线重连后的批量补传。
+- 报警信息通过 `alarm` 字段随监测数据上报，包含原因、阈值和联动动作。
+- 报警阈值设置与报警判定在现场完成。
+- 支持多设备、多条数据合并上报。
 
 #pagebreak()
 
-= 通信协议：HTTP/HTTPS（RESTful + JSON）
+= 通信协议
 
 == 基本约定
 
@@ -67,12 +60,56 @@
   columns: (auto, 1fr),
   header: ([项目], [约定]),
   (
-    [传输协议], [HTTPS（TLS 1.2 及以上），端口 443],
+    [传输协议], [HTTP，端口 80],
     [数据格式], [JSON，编码 UTF-8],
-    [报文结构], [请求体固定为 4 个字段：`payload`（业务数据序列化后的 JSON *字符串*，按设备拆分的数组，见下）、`sign`（对 `payload` 字符串的签名）、`time`（本次请求发送时间，ISO 8601）、`timestamp`（本次请求发送时间，毫秒时间戳字符串）；`time` 与 `timestamp` 是同一时刻的两种表示],
-    [签名算法], [`sign = HMAC-SHA256(deviceSecret, payload)`，对 `payload` 原始字符串逐字节计算，平台按相同算法重新计算比对后方可入库],
-    [防重放], [外层 `timestamp` 与平台接收时间偏差超过 ±5 分钟的请求将被拒绝],
-    [请求频率], [实时数据上报：γ每30s一次，氡每1800s一次；心跳：每60s一次；支持合并多设备/多条数据一次性上报],
+    [报文结构], [请求体为 JSON 数组，按设备拆分],
+    [时间基准], [毫秒时间戳（number，Unix epoch UTC），取网关时钟],
+    [请求频率], [>=30s；支持合并上报；单请求不超过 1000 个数据点、256 KB],
+  )
+)
+
+== 报文结构
+
+数据上报与心跳的请求体均为 JSON 数组，按设备拆分，一次请求可含多台设备：
+
+```json
+[
+  { "device": "2026012905", "type": "gamma", "...": "..." },
+  { "device": "radon-37", "type": "radon", "...": "..." }
+]
+```
+
+数组元素格式见各接口定义。每条数据的 `timestamp` 为采集时刻，可早于发送时刻，用于合并上报。
+
+响应体：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "time": 1792980000120
+}
+```
+
+#ztable(
+  columns: (auto, 1fr),
+  header: ([字段], [说明]),
+  (
+    [`code`], [处理结果，取 HTTP 状态码],
+    [`message`], [简短文字说明],
+    [`time`], [平台处理时刻，毫秒时间戳（number）],
+  )
+)
+
+== 设备标识
+
+#ztable(
+  columns: (auto, 1fr),
+  header: ([项], [约定]),
+  (
+    [`station`], [厂房编号，如 `C35`、`C19`、`C3`、`JZGL`（集中过滤厂房）],
+    [γ剂量率仪], [`device` 取设备资产编号（SN），如 `2026012905`],
+    [氡监测仪], [`device` 取 `radon-<节点号>`，如 `radon-37`；氡探头与 γ 剂量率仪共用同一 RS485 总线及串口服务器，由网关按节点号拆分],
   )
 )
 
@@ -88,39 +125,22 @@
   )
 )
 
-#callout(title: "设计说明")[
-  平台不提供任何下行控制接口。通风联动等现场动作由本地网关/PLC闭环执行并作为字段随数据一并上报，仅用于平台记录与展示，不构成远程控制通道。
-]
-
 == 接口规格
 
 === 实时监测数据上报（含报警） `POST /api/v1/monitor/data`
 
-报警不单独建接口，而是通过 `alarm` 字段直接携带在数据上报中：不报警时 `alarm` 为 `false`；触发报警时 `alarm` 为一个对象，携带等级、原因、当前阈值与已执行的联动动作。`payload` 是一个*按设备拆分*的数组，每个数组元素代表一台设备，其下 `metrics` 数组可携带该设备本次上报的一条或多条数据。
-
-```json
-{
-  "payload": "[{\"station\":\"xxx\",\"device\":\"BR-GAMMA-C3-001\",\"metrics\":[{\"metric\":\"0102060301\",\"name\":\"γ剂量率实时值\",\"timestamp\":\"1729665000000\",\"value\":45.0,\"unit\":\"nGy/h\",\"alarm\":false}]}]",
-  "sign": "a3f9c1e0b7d24f6a...e7",
-  "time": "2025-10-23T14:30:00+08:00",
-  "timestamp": "1729665000000"
-}
-```
-
-`payload` 反序列化后的结构：
+报警通过 `alarm` 字段随数据上报：未报警为 `false`，报警时为对象。请求体按设备拆分，每台设备的 `data` 可含一条或多条数据。
 
 ```json
 [
   {
-    "station": "xxx",
-    "device": "BR-GAMMA-C3-001",
-    "metrics": [
+    "device": "2026012905",
+    "type": "gamma",
+    "data": [
       {
-        "metric": "0102060301",
-        "name": "γ剂量率实时值",
-        "timestamp": "1729665000000",
+        "timestamp": 1792980000000,
         "value": 45.0,
-        "unit": "nGy/h",
+        "unit": "nSv/h",
         "alarm": false
       }
     ]
@@ -134,68 +154,50 @@
   columns: (auto, 1fr),
   header: ([字段], [说明]),
   (
-    [`station`], [站点编号],
-    [`device`], [设备编号，数组每个元素对应一台设备],
-    [`metrics`], [该设备本次上报的数据数组，可包含一条或多条],
-    [`metric`], [监测指标编码，由平台在设备注册时统一分配，站内唯一],
-    [`name`], [监测指标名称],
-    [`timestamp`], [该条数据的采集时间，毫秒时间戳字符串，如 `"1729665000000"`；可能早于外层发送时间（如断线重连后补传历史数据）],
+    [`device`], [设备 ID；数组每个元素对应一台设备],
+    [`type`], [设备类型：`gamma`（γ剂量率仪）/ `radon`（氡监测仪）],
+    [`data`], [该设备本次上报的数据数组],
+    [`timestamp`], [采集时刻，毫秒时间戳（number）],
     [`value`], [监测数值],
     [`unit`], [单位],
-    [`alarm`], [`false` 表示未报警；报警时为对象，见下],
-    [`alarm.level`], [报警等级：1=一级报警，2=二级报警],
-    [`alarm.reason`], [报警原因，现场生成的简短文字说明，如 "γ剂量率超出二级上限阈值"],
-    [`alarm.threshold`], [触发本次报警时现场控制软件生效的阈值，仅供平台展示；平台不下发覆盖，*以现场控制软件为准*],
-    [`alarm.action`], [现场已执行的联动动作，如 `vent_start`；未执行动作时为 `null`],
+    [`alarm`], [`false` 表示未报警；报警时为对象],
+    [`alarm.reason`], [报警原因，简短文字说明],
+    [`alarm.threshold`], [`{low, up}` 低值/高值报警阈值，单位同 `unit`],
+    [`alarm.action`], [联动动作：`sound_light`（声光报警）、…；未执行为 `null`],
   )
 )
 
-响应示例：
-
-```json
-{
-  "code": 200,
-  "message": "success",
-  "time": "2025-10-23T14:30:01+08:00"
-}
-```
-
-*一次请求合并上报两台设备（其中一台触发二级报警）时，`payload` 反序列化后的结构：*
+合并上报两台设备（其中一台触发报警）：
 
 ```json
 [
   {
-    "station": "xxx",
-    "device": "BR-GAMMA-C3-001",
-    "metrics": [
+    "device": "2026012905",
+    "type": "gamma",
+    "data": [
       {
-        "metric": "0102060301",
-        "name": "γ剂量率实时值",
-        "timestamp": "1729665000000",
+        "timestamp": 1792980000000,
         "value": 45.0,
-        "unit": "nGy/h",
+        "unit": "nSv/h",
         "alarm": false
       }
     ]
   },
   {
-    "station": "xxx",
-    "device": "BR-RADON-C24-002",
-    "metrics": [
+    "device": "radon-37",
+    "type": "radon",
+    "data": [
       {
-        "metric": "0102060302",
-        "name": "氡及子体浓度实时值",
-        "timestamp": "1729665065000",
+        "timestamp": 1792980065000,
         "value": 1200.0,
         "unit": "Bq/m3",
         "alarm": {
-          "level": 2,
-          "reason": "氡浓度持续超出二级上限阈值",
+          "reason": "氡浓度超出上限阈值",
           "threshold": {
             "low": 100.0,
             "up": 1000.0
           },
-          "action": "vent_start"
+          "action": null
         }
       }
     ]
@@ -205,63 +207,42 @@
 
 === 设备心跳上报 `POST /api/v1/device/heartbeat`
 
-用于上报设备在线状态。请求体外层结构与数据上报一致（`payload` + `sign` + `time` + `timestamp`），`payload` 同样是按设备拆分的数组，可一次上报多台设备的心跳。
-
-```json
-{
-  "payload": "[{\"station\":\"xxx\",\"device\":\"BR-GAMMA-C3-001\",\"type\":\"gamma\",\"status\":\"online\",\"timestamp\":\"1729665060000\"},{\"station\":\"xxx\",\"device\":\"BR-RADON-C24-002\",\"type\":\"radon\",\"status\":\"online\",\"timestamp\":\"1729665060000\"}]",
-  "sign": "6f1a9d3e0c8b...5a",
-  "time": "2025-10-23T14:31:00+08:00",
-  "timestamp": "1729665060000"
-}
-```
-
-`payload` 反序列化后的结构：
-
 ```json
 [
   {
-    "station": "xxx",
-    "device": "BR-GAMMA-C3-001",
+    "station": "C3",
+    "device": "2026012905",
     "type": "gamma",
     "status": "online",
-    "timestamp": "1729665060000"
+    "timestamp": 1792980060000
   },
   {
-    "station": "xxx",
-    "device": "BR-RADON-C24-002",
+    "station": "C3",
+    "device": "radon-37",
     "type": "radon",
     "status": "online",
-    "timestamp": "1729665060000"
+    "timestamp": 1792980060000
   }
 ]
 ```
-
-字段说明：
 
 #ztable(
   columns: (auto, 1fr),
   header: ([字段], [说明]),
   (
-    [`type`], [设备类型，如 `gamma`（γ剂量率）、`radon`（氡及子体）],
+    [`station`], [厂房编号],
+    [`device`], [设备 ID；数组每个元素对应一台设备],
+    [`type`], [设备类型，同数据上报],
     [`status`], [`online` 在线 / `offline` 离线 / `fault` 故障],
-    [`timestamp`], [该设备本条心跳的采集时间，毫秒时间戳字符串],
+    [`timestamp`], [本条心跳采集时刻，毫秒时间戳（number）],
   )
 )
 
-响应示例：
+设备由网关代发心跳，状态由网关判定：通信中断 `offline`，仪表故障 `fault`，正常 `online`。
 
-```json
-{
-  "code": 200,
-  "message": "success",
-  "time": "2025-10-23T14:31:01+08:00"
-}
-```
+响应结构与数据上报一致。
 
-== 错误码
-
-`code` 字段直接取值于本次响应的 HTTP 状态码，不再另设一套业务编码：
+== 错误码约定
 
 #ztable(
   columns: (auto, 1fr),
@@ -270,14 +251,10 @@
   (
     [200], [成功],
     [400], [参数缺失或格式错误],
-    [401], [签名校验失败或 token 无效/过期],
-    [403], [设备未注册],
-    [404], [监测指标编码不存在],
-    [409], [时间戳超出允许偏差范围，请求被判定为重放],
-    [422], [数值超出设备量程],
-    [429], [请求频率超限],
+    [409], [请求冲突],
+    [413], [请求体过大],
     [500], [服务端内部错误],
-    [503], [服务暂不可用，请按退避策略重试],
+    [503], [服务暂不可用],
   )
 )
 
@@ -285,31 +262,12 @@
 
 ```json
 {
-  "code": 401,
-  "message": "签名校验失败",
-  "time": "2025-10-23T14:30:01+08:00"
+  "code": 400,
+  "message": "请求体缺失或格式错误",
+  "time": 1792980000100
 }
 ```
 
-#pagebreak()
+== 兼容性与版本
 
-= 附录：报警分级说明
-
-上报数据中的 `alarm.level` 字段与以下等级对应，具体触发阈值以现场控制软件设定为准，平台侧仅作展示；未报警时 `alarm` 直接为 `false`，不出现下表中的等级：
-
-#ztable(
-  columns: (auto, 1fr, 1fr),
-  header: ([等级], [典型触发条件], [现场动作]),
-  (
-    [1（一级）], [γ超低值/高值阈值 或 氡超低值/高值阈值（一级）], [现场声光报警；`alarm.action` 记录已执行动作],
-    [2（二级）], [数值持续超出二级阈值], [现场自动执行相应联动动作（如通风控制）；`alarm.action` 字段一并上报],
-  )
-)
-
-#callout(
-  title: "安全设计原则",
-  color: rgb("#fdecea"),
-  bar: rgb("#d32f2f"),
-)[
-  报警判定与联动控制（声光报警、通风启停）完全在现场网关/PLC侧闭环执行，不依赖网络连接与平台响应；平台仅接收上报结果用于记录、展示与统计，不作为联动触发路径，也不对现场阈值进行远程覆盖。
-]
+`/api/v1/` 即协议版本。
